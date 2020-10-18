@@ -1,0 +1,2 @@
+class UnexistentNodeError(KeyError):
+    pass
