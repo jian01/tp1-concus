@@ -6,7 +6,6 @@ before_install:
   - pip install -r requirements.txt
   - pip install -r requirements-travis.txt
   - export PYTHONPATH="${PYTHONPATH}:backup_server"
-script: pytest tests
+script: pytest --cov=. tests/
 after_success:
-  - pytest --cov=. tests/
   - coveralls
