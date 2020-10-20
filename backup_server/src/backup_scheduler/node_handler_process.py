@@ -4,6 +4,8 @@ import os
 
 
 DEFAULT_SOCKET_BUFFER_SIZE = 4096
+CORRECT_FILE_FORMAT = '%s.CORRECT'
+WIP_FILE_FORMAT = '%s.WIP'
 
 
 class NodeHandlerProcess:
@@ -42,7 +44,7 @@ class NodeHandlerProcess:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((self.node_address, self.node_port))
         sock.sendall(self.node_path.encode('utf-8'))
-        open(self.write_file_path + ".WIP", 'w').close()
+        open(WIP_FILE_FORMAT % self.write_file_path, 'w').close()
         data_file = open(self.write_file_path, 'ab')
         sock.setblocking(True)
         try:
@@ -53,5 +55,5 @@ class NodeHandlerProcess:
         except socket.error:
             pass
         data_file.close()
-        open(self.write_file_path + ".CORRECT", 'w').close()
-        os.remove(self.write_file_path + ".WIP")
+        open(CORRECT_FILE_FORMAT % self.write_file_path, 'w').close()
+        os.remove(WIP_FILE_FORMAT % self.write_file_path)

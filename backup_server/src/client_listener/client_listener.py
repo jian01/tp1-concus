@@ -5,6 +5,7 @@ from multiprocessing import Pipe
 
 
 class ClientListener:
+	logger = logging.getLogger(__module__)
 	def __init__(self, port, listen_backlog,
 				 backup_scheduler_write: Pipe,
 				 backup_scheduler_read: Pipe):
@@ -17,6 +18,7 @@ class ClientListener:
 	def __call__(self):
 		while True:
 			client_sock = self.__accept_new_connection()
+			ClientListener.logger.info("Client connection accepted")
 			self.__handle_client_connection(client_sock)
 
 	def __handle_client_connection(self, client_sock):
@@ -44,7 +46,5 @@ class ClientListener:
 		Function blocks until a connection to a client is made.
 		Then connection created is printed and returned
 		"""
-
-		logging.info("Accepting connection for client listening")
 		c, addr = self._server_socket.accept()
 		return c

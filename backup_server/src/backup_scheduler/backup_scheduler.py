@@ -1,7 +1,7 @@
 from typing import NoReturn, NamedTuple, Optional
 from multiprocessing import Pipe, Process
 from src.database.database import Database
-from src.backup_scheduler.node_handler_process import NodeHandlerProcess
+from src.backup_scheduler.node_handler_process import NodeHandlerProcess, CORRECT_FILE_FORMAT, WIP_FILE_FORMAT
 from src.database.entities.finished_task import FinishedTask
 from src.backup_scheduler.client_request_handler import ClientRequestHandler
 from datetime import datetime, timezone
@@ -23,13 +23,48 @@ class ScheduledTask(NamedTuple):
     frequency: int
     last_backup: Optional[datetime] = None
 
+    def should_run(self) -> bool:
+        """
+        Calculates whether it should run or not
+
+        :return: a boolean
+        """
+        return not self.last_backup or \
+               (datetime.now() - self.last_backup).seconds / SECONDS_TO_MINUTES > self.frequency
+
+
+class RunningTask(NamedTuple):
+    write_file_path: str
+    process: Process
+
+    def is_running(self):
+        return self.process.is_alive()
+
+    def backup_commit(self) -> bool:
+        """
+        Cleanup all backup unnecessary files, return True if backup is of, else False
+
+        :return: a boolean
+        """
+        if os.path.isfile(CORRECT_FILE_FORMAT % self.write_file_path):
+            os.remove(CORRECT_FILE_FORMAT % self.write_file_path)
+            return True
+        else:
+            if os.path.isfile(self.write_file_path):
+                os.remove(self.write_file_path)
+            if os.path.isfile(WIP_FILE_FORMAT % self.write_file_path):
+                os.remove(WIP_FILE_FORMAT % self.write_file_path)
+            return False
+
+
 
 class BackupScheduler:
     """
     Backup scheduler
     """
-
-    def _initialize_schedule(self):
+    logger = logging.getLogger(__module__)
+    def _reload_schedule(self):
+        BackupScheduler.logger.debug("Reloading schedule for backup")
         self.schedule = []
         for node_name in self.database.get_node_names():
             node_address, node_port = self.database.get_node_address(node_name)
@@ -76,23 +111,67 @@ class BackupScheduler:
         """
         Handles a client request
         """
+        BackupScheduler.logger.debug("Handling user command")
         request = self.pipe_request_read.recv()
         data = None
         try:
             command, args = request
             data, tasks_changed = self.command_parser.parse_command(command, args)
             if tasks_changed:
-                self._initialize_schedule()
+                self._reload_schedule()
         except Exception as e:
+            BackupScheduler.logger.error("Errro handling client request: %s" % str(e))
             self.pipe_request_answer.send(("Error %s:" % str(e), data))
         self.pipe_request_answer.send(("OK", data))
+
+    def _dispatch_running_tasks(self):
+        """
+        Handles running tasks
+        """
+        now_running_tasks = {}
+        for node_data, task in self.running_tasks.items():
+            if not task.is_running():
+                if task.backup_commit():
+                    ft = FinishedTask(result_path=task.write_file_path,
+                                      kb_size=os.path.getsize(task.write_file_path) / 1024,
+                                      timestamp=datetime.now())
+                    self.database.register_finished_task(node_data[0], node_data[1], ft)
+                    BackupScheduler.logger.info("Backup for node %s and path %s finished succesfully" % node_data)
+                    self._reload_schedule()
+                else:
+                    BackupScheduler.logger.error("Backup for node %s and path %s failed" % node_data)
+            else:
+                now_running_tasks[node_data] = task
+        self.running_tasks = now_running_tasks
+
+    def _run_new_tasks(self):
+        """
+        Handles the schedule to run new tasks
+        """
+        for sched_task in self.schedule:
+            if (sched_task.node_name, sched_task.node_path) in self.running_tasks:
+                continue
+            if sched_task.should_run():
+                write_file_path = WRITE_FILE_PATH_TEMPLATE % (self.backup_path,
+                                                              datetime.now().replace(tzinfo=timezone.utc).timestamp(),
+                                                              sched_task.node_name,
+                                                              self.safe_base64(sched_task.node_path))
+                node_handler = NodeHandlerProcess(node_address=sched_task.node_address,
+                                                  node_path=sched_task.node_path,
+                                                  node_port=sched_task.node_port,
+                                                  write_file_path=write_file_path)
+                p = Process(target=node_handler)
+                p.start()
+                BackupScheduler.logger.debug("Backup order for node %s and path %s launched" %
+                                             (sched_task.node_name, sched_task.node_path))
+                self.running_tasks[(sched_task.node_name, sched_task.node_path)] = RunningTask(write_file_path, p)
 
     def __call__(self) -> NoReturn:
         """
         Code for running the main loop in the main process
 
         The process works this way, while true:
-            1. Checks for 60s the pipe from the client controller to see if theres an order to execute
+            1. Checks for SECONDS_TO_WAIT_CLIENT the pipe from the client controller to see if theres an order to execute
                 1.1 If theres an order to execute it runs it
                 1.2 The answer to order is sent through self.pipe_request_answer
             2. For each node handler process that ended:
@@ -107,45 +186,10 @@ class BackupScheduler:
         If other error happens and the process must die:
             * Kill all other processes then dies
         """
-        self._initialize_schedule()
+        self._reload_schedule()
         self._clean_backup_path()
         while True:
             if self.pipe_request_read.poll(SECONDS_TO_WAIT_CLIENT):
                 self._handle_client_request()
-            actual_time = datetime.now()
-            now_running_tasks = {}
-            for node_data, run_data in self.running_tasks.items():
-                if not run_data[1].is_alive():
-                    if os.path.isfile('%s.CORRECT' % run_data[0]):
-                        os.remove('%s.CORRECT' % run_data[0])
-                        ft = FinishedTask(result_path=run_data[0],
-                                          kb_size=os.path.getsize(run_data[0]) / 1024,
-                                          timestamp=datetime.now())
-                        self.database.register_finished_task(node_data[0], node_data[1], ft)
-                        self._initialize_schedule()
-                    else:
-                        if os.path.isfile(run_data[0]):
-                            os.remove(run_data[0])
-                        if os.path.isfile('%s.WIP' % run_data[0]):
-                            os.remove('%s.WIP' % run_data[0])
-                else:
-                    now_running_tasks[node_data] = run_data
-            for sched_task in self.schedule:
-                if (sched_task.node_name, sched_task.node_path) in now_running_tasks:
-                    continue
-                if sched_task.last_backup and\
-                        (max(actual_time, sched_task.last_backup) - min(actual_time, sched_task.last_backup)).seconds / \
-                        SECONDS_TO_MINUTES < sched_task.frequency:
-                    continue
-                write_file_path = WRITE_FILE_PATH_TEMPLATE % (self.backup_path,
-                                                              actual_time.replace(tzinfo=timezone.utc).timestamp(),
-                                                              sched_task.node_name,
-                                                              self.safe_base64(sched_task.node_path))
-                node_handler = NodeHandlerProcess(node_address=sched_task.node_address,
-                                                  node_path=sched_task.node_path,
-                                                  node_port=sched_task.node_port,
-                                                  write_file_path=write_file_path)
-                p = Process(target=node_handler)
-                p.start()
-                now_running_tasks[(sched_task.node_name, sched_task.node_path)] = (write_file_path, p)
-            self.running_tasks = now_running_tasks
+            self._dispatch_running_tasks()
+            self._run_new_tasks()

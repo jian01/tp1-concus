@@ -7,6 +7,7 @@ services:
     environment:
       - PORT=1111
       - LISTEN_BACKLOG=5
+      - DATABASE_PATH=/backup_data/database
     networks:
       - testing_net
     ports:

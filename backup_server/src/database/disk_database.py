@@ -7,7 +7,9 @@ import json
 import pickle
 import os
 
-COMMIT_KEYWORD = "COMMIT"
+COMMIT_LINE = "COMMIT\n"
+LOGFILE_PATH = "%s/log"
+DATABASE_PATH = "%s/database"
 MAX_LOGSIZE = 4000
 MAX_UNCOMMITED = 200
 MAX_FINISHED_TASKS = 10
@@ -29,14 +31,14 @@ class DiskDatabase(Database):
     """
 
     @staticmethod
-    def dump_db(database_path: str, database_data: Dict):
+    def _dump_db(database_path: str, database_data: Dict):
         """
         Dumps the database data
 
         :param database_path: the database path
         :param database_data: the database data to dump
         """
-        with open("%s/database" % database_path, "wb") as database_file:
+        with open(DATABASE_PATH % database_path, "wb") as database_file:
             pickle.dump(database_data, database_file)
 
     def load_database(self, database_path: str) -> NoReturn:
@@ -45,33 +47,31 @@ class DiskDatabase(Database):
 
         :param database_path: the path where the database is stores
         """
-        if os.path.exists("%s/database" % database_path):
-            with open("%s/database" % database_path, "rb") as database_file:
+        if os.path.exists(DATABASE_PATH % database_path):
+            with open(DATABASE_PATH % database_path, "rb") as database_file:
                 self.database = pickle.load(database_file)
         redo_operations = []
         self.logsize = 0
-        if os.path.exists("%s/log" % database_path):
-            with open("%s/log" % database_path, "r") as logfile:
+        if os.path.exists(LOGFILE_PATH % database_path):
+            with open(LOGFILE_PATH % database_path, "r") as logfile:
                 line = logfile.readline()
                 while line:
                     self.logsize += 1
-                    if line[:len(COMMIT_KEYWORD)] == COMMIT_KEYWORD:
+                    if line == COMMIT_LINE:
                         redo_operations = []
                     else:
                         redo_operations.append(line)
                     line = logfile.readline()
+            self.writeahed_log = open(LOGFILE_PATH % database_path, "a")
             if redo_operations:
                 for op in redo_operations:
                     try:
                         self._write_operation(**json.loads(op))
                     except UnexistentNodeError:
                         pass
-                self.dump_db(database_path, self.database)
-                with open("%s/log" % database_path, "a") as log:
-                    log.write(COMMIT_KEYWORD + '\n')
-                    log.flush()
-            if self.logsize > 4000:
-                open("%s/log" % database_path, 'w').close()
+                self._commit()
+        else:
+            self.writeahed_log = open(LOGFILE_PATH % database_path, "w")
 
     def __init__(self, database_path: str):
         """
@@ -82,12 +82,19 @@ class DiskDatabase(Database):
         self.database_path = database_path
         self.database = {}
         self.logsize = 0
+        self.writeahed_log = None
         self.load_database(database_path)
         self.uncommited_size = 0
-        if not os.path.exists("%s/log" % database_path):
-            self.writeahed_log = open("%s/log" % database_path, "w")
-        else:
-            self.writeahed_log = open("%s/log" % database_path, "a")
+
+    def _commit(self):
+        self._dump_db(self.database_path, self.database)
+        self.writeahed_log.write(COMMIT_LINE)
+        self.writeahed_log.flush()
+        self.logsize += 1
+        self.uncommited_size = 0
+        if self.logsize > MAX_LOGSIZE:
+            self.writeahed_log.close()
+            self.writeahed_log = open(LOGFILE_PATH % self.database_path, 'w')
 
     def _write_operation(self, func: str, params: List, use_log: bool = False):
         if use_log:
@@ -99,11 +106,7 @@ class DiskDatabase(Database):
         if use_log:
             self.uncommited_size += 1
             if self.uncommited_size > MAX_UNCOMMITED:
-                self.dump_db(self.database_path, self.database)
-                self.writeahed_log.write(COMMIT_KEYWORD + '\n')
-                self.writeahed_log.flush()
-                self.logsize += 1
-                self.uncommited_size = 0
+                self._commit()
 
     @staticmethod
     def _register_node(database, node_name, node_addr, node_port):
@@ -188,8 +191,8 @@ class DiskDatabase(Database):
         if task_data in database[node_name]['finished_tasks']:
             return
         database[node_name]['finished_tasks'].insert(0, task_data)
-        if len(database[node_name]['finished_tasks']) > 10:
-            database[node_name]['finished_tasks'] = database[node_name]['finished_tasks'][:10]
+        if len(database[node_name]['finished_tasks']) > MAX_FINISHED_TASKS:
+            database[node_name]['finished_tasks'] = database[node_name]['finished_tasks'][:MAX_FINISHED_TASKS]
 
     def register_finished_task(self, node_name: str, node_path: str, task: FinishedTask) -> NoReturn:
         """
