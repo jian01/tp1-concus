@@ -72,7 +72,7 @@ class TestBackupScheduler(unittest.TestCase):
 		self.assertEqual(len(data), 0)
 		self.client_listener_send.send(('add_task', {'name': 'prueba',
 													 'path': '/path',
-													 'frequency': 10}))
+													 'frequency': 1}))
 		message, data = self.client_listener_recv.recv()
 		self.assertEqual(message, "OK")
 		self.barrier.wait(timeout=60)
@@ -84,4 +84,10 @@ class TestBackupScheduler(unittest.TestCase):
 			self.assertEqual(message, "OK")
 		self.assertEqual(len(data), 1)
 		self.assertEqual(data[0]['kb_size'], 0)
+		while len(data) == 1:
+			self.client_listener_send.send(('query_backups', {'name': 'prueba',
+															  'path': '/path'}))
+			message, data = self.client_listener_recv.recv()
+			self.assertEqual(message, "OK")
+		self.assertEqual(len(data), 2)
 

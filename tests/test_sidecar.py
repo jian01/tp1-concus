@@ -19,7 +19,8 @@ class TestSidecar(unittest.TestCase):
 		self.p.terminate()
 
 	def test_download_py(self):
-		node_handler_process = NodeHandlerProcess('localhost', 1234, 'sidecar/sidecar_process.py',
+		node_handler_process = NodeHandlerProcess('localhost', 1234,
+												  'sidecar/src/sidecar_process.py',
 												  '/tmp/backup_output/out')
 		node_handler_process = Process(target=node_handler_process)
 		node_handler_process.start()

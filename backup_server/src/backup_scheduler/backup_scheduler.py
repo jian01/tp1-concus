@@ -10,7 +10,7 @@ import base64
 import logging
 
 
-SECONDS_TO_MINUTES = 3600
+SECONDS_TO_MINUTES = 60
 WRITE_FILE_PATH_TEMPLATE = '%s/backup_%d_%s_%s'
 SECONDS_TO_WAIT_CLIENT = 5
 
