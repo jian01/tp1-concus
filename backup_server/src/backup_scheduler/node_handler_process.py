@@ -1,4 +1,9 @@
 from typing import NoReturn
+import socket
+import os
+
+
+DEFAULT_SOCKET_BUFFER_SIZE = 4096
 
 
 class NodeHandlerProcess:
@@ -21,7 +26,7 @@ class NodeHandlerProcess:
         self.node_path = node_path
         self.write_file_path = write_file_path
 
-    def run(self) -> NoReturn:
+    def __call__(self, *args, **kwargs)-> NoReturn:
         """
         Code for running the handler in a new process
 
@@ -32,6 +37,21 @@ class NodeHandlerProcess:
                 2.2. Starts saving the backup in a file located in self.write_file_path
                 2.3. When the backup is saved saves an empty file named self.write_file_path but ending with .CORRECT
                 2.4. Deletes the .WIP file
-            3. Ｓｅｐｐｕｋｕ, the process kills itself
+            3. Ｓｅｐｐｕｋｕ
         """
-        return
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect((self.node_address, self.node_port))
+        sock.sendall(self.node_path.encode('utf-8'))
+        open(self.write_file_path + ".WIP", 'w').close()
+        data_file = open(self.write_file_path, 'ab')
+        sock.setblocking(True)
+        try:
+            while True:
+                data = sock.recv(DEFAULT_SOCKET_BUFFER_SIZE)
+                data_file.write(data)
+                sock.setblocking(False)
+        except socket.error:
+            pass
+        data_file.close()
+        open(self.write_file_path + ".CORRECT", 'w').close()
+        os.remove(self.write_file_path + ".WIP")

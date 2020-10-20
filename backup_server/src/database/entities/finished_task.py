@@ -17,5 +17,6 @@ class FinishedTask(NamedTuple):
 
     @classmethod
     def from_dict(cls, data: Dict):
+        data = data.copy()
         data['timestamp'] = datetime.fromisoformat(data['timestamp'])
         return cls(**data)

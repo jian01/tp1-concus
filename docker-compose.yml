@@ -1,0 +1,34 @@
+version: '3'
+services:
+  backup_server:
+    container_name: backup_server
+    image: backup_server:latest
+    entrypoint: python3 /__main__.py
+    environment:
+      - PORT=1111
+      - LISTEN_BACKLOG=5
+    networks:
+      - testing_net
+    ports:
+      - "1111:1111"
+    volumes:
+      - ./backup_volume:/backup_data
+
+  node1:
+    container_name: node1
+    image: sidecar:latest
+    entrypoint: python3 /__main__.py
+    environment:
+      - PORT=2222
+      - LISTEN_BACKLOG=5
+    networks:
+      - testing_net
+    volumes:
+      - ./node1_volume:/data
+
+networks:
+  testing_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24

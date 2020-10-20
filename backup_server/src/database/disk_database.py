@@ -84,7 +84,10 @@ class DiskDatabase(Database):
         self.logsize = 0
         self.load_database(database_path)
         self.uncommited_size = 0
-        self.writeahed_log = open("%s/log" % database_path, "a")
+        if not os.path.exists("%s/log" % database_path):
+            self.writeahed_log = open("%s/log" % database_path, "w")
+        else:
+            self.writeahed_log = open("%s/log" % database_path, "a")
 
     def _write_operation(self, func: str, params: List, use_log: bool = False):
         if use_log:
