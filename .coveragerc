@@ -1,7 +1,7 @@
 [run]
 omit =
     # omit everything in /test
-    ./test/*
+    ./tests/*
     # omit main, it wont be used in production
     *__main__.py
     setup.py
