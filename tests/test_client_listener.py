@@ -23,11 +23,17 @@ class MockNodeHandler:
 
 class TestBackupScheduler(unittest.TestCase):
     def setUp(self):
+        try:
+            from pytest_cov.embed import cleanup_on_sigterm
+        except ImportError:
+            pass
+        else:
+            cleanup_on_sigterm()
         self.backup_scheduler_recv, client_listener_send = Pipe(False)
         client_listener_recv, self.backup_scheduler_send = Pipe(False)
-        backup_scheduler = ClientListener(1111, 5, client_listener_send,
+        client_listener = ClientListener(1111, 5, client_listener_send,
                                           client_listener_recv)
-        self.p = Process(target=backup_scheduler)
+        self.p = Process(target=client_listener)
         self.p.start()
 
     def tearDown(self) -> None:

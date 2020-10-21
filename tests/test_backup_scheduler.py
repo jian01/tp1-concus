@@ -23,6 +23,12 @@ class MockNodeHandler:
 
 class TestBackupScheduler(unittest.TestCase):
 	def setUp(self):
+		try:
+			from pytest_cov.embed import cleanup_on_sigterm
+		except ImportError:
+			pass
+		else:
+			cleanup_on_sigterm()
 		self.barrier = Barrier(2)
 		MockNodeHandler.BARRIER = self.barrier
 		self.node_handler = node_handler_process.NodeHandlerProcess

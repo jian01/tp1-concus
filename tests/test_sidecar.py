@@ -8,6 +8,12 @@ from multiprocessing import Process
 
 class TestSidecar(unittest.TestCase):
 	def setUp(self) -> None:
+		try:
+			from pytest_cov.embed import cleanup_on_sigterm
+		except ImportError:
+			pass
+		else:
+			cleanup_on_sigterm()
 		shutil.rmtree('/tmp/backup_output', ignore_errors=True)
 		os.mkdir('/tmp/backup_output')
 		self.sidecar_process = SidecarProcess(1234, 5)
