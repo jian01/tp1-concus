@@ -35,7 +35,7 @@ class ClientListener:
 			message, data = self.backup_scheduler_read.recv()
 			client_sock.send(json.dumps({"message": message, "data": data}).encode("utf-8"))
 		except OSError:
-			logging.error("Error while reading socket {}".format(client_sock))
+			ClientListener.logger.error("Error while reading socket {}".format(client_sock))
 		finally:
 			client_sock.close()
 
