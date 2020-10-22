@@ -1,18 +1,19 @@
-from typing import NoReturn, NamedTuple, Optional
-from multiprocessing import Pipe, Process
-from src.database.database import Database
-from src.backup_scheduler.node_handler_process import NodeHandlerProcess, CORRECT_FILE_FORMAT, WIP_FILE_FORMAT
-from src.database.entities.finished_task import FinishedTask
-from src.backup_scheduler.client_request_handler import ClientRequestHandler
-from datetime import datetime, timezone
-import os
 import base64
-import logging
+import os
+from datetime import datetime, timezone
+from multiprocessing import Pipe, Process
+from typing import NoReturn, NamedTuple, Optional
 
+from backup_utils.multiprocess_logging import MultiprocessingLogger
+
+from src.backup_scheduler.client_request_handler import ClientRequestHandler
+from src.backup_scheduler.node_handler_process import NodeHandlerProcess, CORRECT_FILE_FORMAT, WIP_FILE_FORMAT
+from src.database.database import Database
+from src.database.entities.finished_task import FinishedTask
 
 SECONDS_TO_MINUTES = 60
 WRITE_FILE_PATH_TEMPLATE = '%s/backup_%d_%s_%s'
-SECONDS_TO_WAIT_CLIENT = 5
+SECONDS_TO_WAIT_CLIENT = 10
 
 
 class ScheduledTask(NamedTuple):
@@ -57,12 +58,12 @@ class RunningTask(NamedTuple):
             return False
 
 
-
 class BackupScheduler:
     """
     Backup scheduler
     """
-    logger = logging.getLogger(__module__)
+    logger = MultiprocessingLogger.getLogger(__module__)
+
     def _reload_schedule(self):
         BackupScheduler.logger.debug("Reloading schedule for backup")
         self.schedule = []

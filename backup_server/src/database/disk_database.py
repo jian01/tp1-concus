@@ -1,11 +1,12 @@
-from typing import NoReturn, List, Dict, Tuple, Set
-from abc import abstractmethod
-from .database import Database
-from src.database.entities.finished_task import FinishedTask
-from .exceptions.unexistent_node_error import UnexistentNodeError
 import json
-import pickle
 import os
+import pickle
+from abc import abstractmethod
+from typing import NoReturn, List, Dict, Tuple, Set
+
+from src.database.entities.finished_task import FinishedTask
+from .database import Database
+from .exceptions.unexistent_node_error import UnexistentNodeError
 
 COMMIT_LINE = "COMMIT\n"
 LOGFILE_PATH = "%s/log"

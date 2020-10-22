@@ -6,8 +6,7 @@ services:
     entrypoint: python3 /__main__.py
     environment:
       - PORT=1111
-      - LISTEN_BACKLOG=5
-      - DATABASE_PATH=/backup_data/database
+      - BACKUP_DATA_PATH=/backup_data
     networks:
       - testing_net
     ports:
@@ -21,7 +20,6 @@ services:
     entrypoint: python3 /__main__.py
     environment:
       - PORT=2222
-      - LISTEN_BACKLOG=5
     networks:
       - testing_net
     volumes:

@@ -1,8 +1,9 @@
-import unittest
-import socket
-from multiprocessing import Process, Pipe
-from src.client_listener.client_listener import ClientListener
 import json
+import socket
+import unittest
+from multiprocessing import Process, Pipe
+
+from src.client_listener.client_listener import ClientListener
 
 
 class MockNodeHandler:
@@ -31,8 +32,8 @@ class TestBackupScheduler(unittest.TestCase):
             cleanup_on_sigterm()
         self.backup_scheduler_recv, client_listener_send = Pipe(False)
         client_listener_recv, self.backup_scheduler_send = Pipe(False)
-        client_listener = ClientListener(1111, 5, client_listener_send,
-                                          client_listener_recv)
+        client_listener = ClientListener(3333, 5, client_listener_send,
+                                         client_listener_recv)
         self.p = Process(target=client_listener)
         self.p.start()
 
@@ -44,7 +45,7 @@ class TestBackupScheduler(unittest.TestCase):
 
     def test_send_and_receive_command(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('localhost', 1111))
+        sock.connect(('localhost', 3333))
         sock.sendall('{"command": "dummy", "args": {"one": "one"}}'.encode('utf-8'))
         command, args = self.backup_scheduler_recv.recv()
         self.assertEqual(command, 'dummy')
@@ -52,3 +53,4 @@ class TestBackupScheduler(unittest.TestCase):
         self.backup_scheduler_send.send(("OK", {}))
         msg = sock.recv(2048).rstrip()
         self.assertEqual(json.loads(msg), {"message": "OK", "data": {}})
+        sock.close()

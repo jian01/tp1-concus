@@ -1,10 +1,11 @@
-import unittest
 import os
 import shutil
-from src.database.disk_database import DiskDatabase
-from src.database.exceptions.unexistent_node_error import UnexistentNodeError
-from src.database.entities.finished_task import FinishedTask
+import unittest
 from datetime import datetime
+
+from src.database.disk_database import DiskDatabase
+from src.database.entities.finished_task import FinishedTask
+from src.database.exceptions.unexistent_node_error import UnexistentNodeError
 
 
 class TestDiskDatabase(unittest.TestCase):

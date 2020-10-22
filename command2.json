@@ -1,2 +1,8 @@
-{"command": "add_task",
-  "args": {"name":  "node1", "path": "/data/afip.pdf", "frequency": 1}}
+{
+  "command": "add_task",
+  "args": {
+    "name": "node1",
+    "path": "/data/cositas",
+    "frequency": 1
+  }
+}

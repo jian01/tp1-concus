@@ -1,5 +1,6 @@
-from typing import NoReturn, List, Set, Tuple
 from abc import abstractmethod
+from typing import NoReturn, List, Set, Tuple
+
 from src.database.entities.finished_task import FinishedTask
 
 

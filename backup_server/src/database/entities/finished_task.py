@@ -1,5 +1,5 @@
-from typing import NamedTuple, Dict
 from datetime import datetime
+from typing import NamedTuple, Dict
 
 
 class FinishedTask(NamedTuple):
