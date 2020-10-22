@@ -32,14 +32,24 @@ class ClientListener:
         """
         try:
             msg = client_sock.recv(2048).rstrip()
-            parsed_msg = json.loads(msg)
-            self.backup_scheduler_write.send((parsed_msg['command'], parsed_msg['args']))
-            message, data = self.backup_scheduler_read.recv()
-            client_sock.send(json.dumps({"message": message, "data": data}).encode("utf-8"))
         except OSError:
             ClientListener.logger.error("Error while reading socket {}".format(client_sock))
-        finally:
             client_sock.close()
+            return
+        parsed_msg = json.loads(msg)
+        self.backup_scheduler_write.send((parsed_msg['command'], parsed_msg['args']))
+        try:
+            message, data = self.backup_scheduler_read.recv()
+        except EOFError as e:
+            ClientListener.logger.exception("Backup scheduler death")
+            client_sock.close()
+            raise e
+        try:
+            client_sock.send(json.dumps({"message": message, "data": data}).encode("utf-8"))
+        except OSError:
+            ClientListener.logger.exception("Error writing through socket")
+            client_sock.close()
+            return
 
     def __accept_new_connection(self):
         """

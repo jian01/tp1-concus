@@ -187,10 +187,16 @@ class BackupScheduler:
         If other error happens and the process must die:
             * Kill all other processes then dies
         """
-        self._reload_schedule()
-        self._clean_backup_path()
-        while True:
-            if self.pipe_request_read.poll(SECONDS_TO_WAIT_CLIENT):
-                self._handle_client_request()
-            self._dispatch_running_tasks()
-            self._run_new_tasks()
+        try:
+            self._reload_schedule()
+            self._clean_backup_path()
+            while True:
+                if self.pipe_request_read.poll(SECONDS_TO_WAIT_CLIENT):
+                    self._handle_client_request()
+                self._dispatch_running_tasks()
+                self._run_new_tasks()
+        except Exception:
+            BackupScheduler.logger.exception("Aborting backup scheduler")
+            for t in self.running_tasks.values():
+                if t.process.is_alive():
+                    t.process.termitate()
