@@ -53,9 +53,9 @@ class SidecarProcess:
             msg = client_sock.recv(1024).rstrip()
             msg = json.loads(msg)
             path, previous_checksum = msg['path'], msg['checksum']
-            SidecarProcess.logger.debug("Previous checksum for path %s is %s" % (path, previous_checksum))
+            SidecarProcess.logger.debug("Previous checksum for path %s is '%s'" % (path, previous_checksum))
         except OSError as e:
-            SidecarProcess.logger.exception("Error while reading socket %s" % (client_sock,))
+            SidecarProcess.logger.exception("Error while reading socket %s: %s" % (client_sock, e))
             client_sock.close()
             return
         backup_file = BackupFile.create_from_path(path, TMP_BACKUP_PATH % backup_no)
@@ -73,7 +73,7 @@ class SidecarProcess:
             client_sock.recv(1024).rstrip()
             client_sock.sendall(file_checksum.encode("utf-8"))
         except OSError as e:
-            SidecarProcess.logger.exception("Error while writing socket %s" % (client_sock,))
+            SidecarProcess.logger.exception("Error while writing socket %s: %s" % (client_sock, e))
             return
         finally:
             client_sock.close()

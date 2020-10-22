@@ -67,7 +67,7 @@ class NodeHandlerProcess:
             sock.sendall(json.dumps({"checksum": self.previous_checksum,
                                      "path": self.node_path}).encode("utf-8"))
         except OSError as e:
-            NodeHandlerProcess.logger.exception("Error while writing socket %s" % (sock,))
+            NodeHandlerProcess.logger.exception("Error while writing socket %s: %s" % (sock, e))
             NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %
                                            (self.node_address, self.node_port, self.node_path))
             return
@@ -86,7 +86,7 @@ class NodeHandlerProcess:
             sock.sendall("OK".encode('utf-8'))
             checksum = sock.recv(DEFAULT_SOCKET_BUFFER_SIZE).rstrip()
         except OSError as e:
-            NodeHandlerProcess.logger.exception("Error while reading socket %s" % (sock,))
+            NodeHandlerProcess.logger.exception("Error while reading socket %s: %s" % (sock, e))
             NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %
                                            (self.node_address, self.node_port, self.node_path))
             return
