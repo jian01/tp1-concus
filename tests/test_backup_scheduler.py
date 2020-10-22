@@ -3,24 +3,32 @@ import shutil
 import unittest
 from multiprocessing import Process, Pipe, Barrier
 
+from backup_utils.backup_file import BackupFile
+
 from src.backup_scheduler import node_handler_process
 from src.database.disk_database import DiskDatabase
 
 
 class MockNodeHandler:
     BARRIER = None
+    PATH_TO_BACKUP = '/tmp/data_for_backup'
 
     def __init__(self, node_address: str, node_port: int,
-                 node_path: str, write_file_path: str):
+                 node_path: str, write_file_path: str, previous_checksum: str):
         self.node_address = node_address
         self.node_port = node_port
         self.node_path = node_path
         self.write_file_path = write_file_path
+        self.previous_checksum = previous_checksum
 
     def __call__(self, *args, **kwargs):
-        open(self.write_file_path, "w").close()
-        open(self.write_file_path + ".CORRECT", "w").close()
-        MockNodeHandler.BARRIER.wait(timeout=10)
+        MockNodeHandler.BARRIER.wait()
+        bf = BackupFile.create_from_path(MockNodeHandler.PATH_TO_BACKUP,
+                                         self.write_file_path)
+        if bf.get_hash() == self.previous_checksum:
+            open(self.write_file_path + ".SAME", "w").close()
+        else:
+            open(self.write_file_path + ".CORRECT", "w").close()
 
 
 class TestBackupScheduler(unittest.TestCase):
@@ -38,6 +46,10 @@ class TestBackupScheduler(unittest.TestCase):
         from src.backup_scheduler.backup_scheduler import BackupScheduler
         shutil.rmtree('/tmp/disk_db_concus', ignore_errors=True)
         os.mkdir('/tmp/disk_db_concus')
+        shutil.rmtree('/tmp/data_for_backup', ignore_errors=True)
+        os.mkdir('/tmp/data_for_backup')
+        with open('/tmp/data_for_backup/data', 'w') as data_file:
+            data_file.write("adasdsa")
         database = DiskDatabase('/tmp/disk_db_concus')
         shutil.rmtree('/tmp/backup_scheduler_path', ignore_errors=True)
         os.mkdir('/tmp/backup_scheduler_path')
@@ -53,7 +65,9 @@ class TestBackupScheduler(unittest.TestCase):
             self.p.terminate()
         shutil.rmtree('/tmp/disk_db_concus', ignore_errors=True)
         shutil.rmtree('/tmp/backup_scheduler_path', ignore_errors=True)
+        shutil.rmtree('/tmp/data_for_backup', ignore_errors=True)
         node_handler_process.NodeHandlerProcess = self.node_handler
+        self.client_listener_send.close()
 
     def test_simple_add_node(self):
         self.client_listener_send.send(('add_node', {'name': 'prueba',
@@ -67,7 +81,7 @@ class TestBackupScheduler(unittest.TestCase):
         self.assertEqual(database.get_node_address('prueba'),
                          ('127.0.0.1', 8080))
 
-    def test_simple_add_task_and_check_done(self):
+    def test_simple_add_task_and_check_done_same_data(self):
         self.client_listener_send.send(('add_node', {'name': 'prueba',
                                                      'address': '127.0.0.1',
                                                      'port': 8080}))
@@ -83,7 +97,7 @@ class TestBackupScheduler(unittest.TestCase):
                                                      'frequency': 1}))
         message, data = self.client_listener_recv.recv()
         self.assertEqual(message, "OK")
-        self.barrier.wait(timeout=60)
+        self.barrier.wait()
         data = []
         while not data:
             self.client_listener_send.send(('query_backups', {'name': 'prueba',
@@ -91,10 +105,48 @@ class TestBackupScheduler(unittest.TestCase):
             message, data = self.client_listener_recv.recv()
             self.assertEqual(message, "OK")
         self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]['kb_size'], 0)
+        self.assertTrue(data[0]['kb_size'] > 0)
+        self.barrier.wait()
         while len(data) == 1:
             self.client_listener_send.send(('query_backups', {'name': 'prueba',
                                                               'path': '/path'}))
             message, data = self.client_listener_recv.recv()
             self.assertEqual(message, "OK")
         self.assertEqual(len(data), 2)
+        self.assertEqual(len(set([d['result_path'] for d in data])), 1)
+
+    def test_simple_add_task_and_check_done_different_data(self):
+        self.client_listener_send.send(('add_node', {'name': 'prueba',
+                                                     'address': '127.0.0.1',
+                                                     'port': 8080}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                          'path': '/path'}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.assertEqual(len(data), 0)
+        self.client_listener_send.send(('add_task', {'name': 'prueba',
+                                                     'path': '/path',
+                                                     'frequency': 1}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.barrier.wait()
+        data = []
+        while not data:
+            self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                              'path': '/path'}))
+            message, data = self.client_listener_recv.recv()
+            self.assertEqual(message, "OK")
+        self.assertEqual(len(data), 1)
+        self.assertTrue(data[0]['kb_size'] > 0)
+        with open('/tmp/data_for_backup/data', 'w') as data_file:
+            data_file.write("Lorem Ipsum dolor sit amet")
+        self.barrier.wait()
+        while len(data) == 1:
+            self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                              'path': '/path'}))
+            message, data = self.client_listener_recv.recv()
+            self.assertEqual(message, "OK")
+        self.assertEqual(len(data), 2)
+        self.assertEqual(len(set([d['result_path'] for d in data])), 2)

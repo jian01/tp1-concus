@@ -107,14 +107,14 @@ class TestDiskDatabase(unittest.TestCase):
     def test_add_one_finished_task(self):
         self.database.register_node('node', 'address', 1111)
         self.database.add_scheduled_task('node', '/home', 4)
-        ft1 = FinishedTask('/tmp/backup1', 223.43, datetime.now())
+        ft1 = FinishedTask('/tmp/backup1', 223.43, datetime.now(), checksum="")
         self.database.register_finished_task('node', '/home', ft1)
         self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), [ft1])
 
     def test_add_finished_task_errors(self):
         self.database.register_node('node', 'address', 1111)
         self.database.add_scheduled_task('node', '/home', 4)
-        ft1 = FinishedTask('/tmp/backup1', 223.43, datetime.now())
+        ft1 = FinishedTask('/tmp/backup1', 223.43, datetime.now(), checksum="")
         with self.assertRaises(UnexistentNodeError):
             self.database.register_finished_task('node', '/home2', ft1)
         with self.assertRaises(UnexistentNodeError):
@@ -125,7 +125,7 @@ class TestDiskDatabase(unittest.TestCase):
         self.database.add_scheduled_task('node', '/home', 4)
         tasks = []
         for i in range(250):
-            ft = FinishedTask('/tmp/backup1', 223.43, datetime.now())
+            ft = FinishedTask('/tmp/backup1', 223.43, datetime.now(), checksum="")
             tasks.insert(0, ft)
             self.database.register_finished_task('node', '/home', ft)
             self.database = DiskDatabase('/tmp/disk_db_concus')
@@ -136,7 +136,7 @@ class TestDiskDatabase(unittest.TestCase):
         self.database.add_scheduled_task('node', '/home', 4)
         tasks = []
         for i in range(250):
-            ft = FinishedTask('/tmp/backup1', 223.43, datetime.now())
+            ft = FinishedTask('/tmp/backup1', 223.43, datetime.now(), checksum="")
             tasks.insert(0, ft)
             self.database.register_finished_task('node', '/home', ft)
             if i % 2 == 0:

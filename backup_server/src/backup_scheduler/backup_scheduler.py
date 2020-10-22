@@ -4,10 +4,12 @@ from datetime import datetime, timezone
 from multiprocessing import Pipe, Process
 from typing import NoReturn, NamedTuple, Optional
 
+from backup_utils.backup_file import BackupFile
 from backup_utils.multiprocess_logging import MultiprocessingLogger
 
 from src.backup_scheduler.client_request_handler import ClientRequestHandler
-from src.backup_scheduler.node_handler_process import NodeHandlerProcess, CORRECT_FILE_FORMAT, WIP_FILE_FORMAT
+from src.backup_scheduler.node_handler_process import NodeHandlerProcess, CORRECT_FILE_FORMAT, WIP_FILE_FORMAT, \
+    SAME_FILE_FORMAT
 from src.database.database import Database
 from src.database.entities.finished_task import FinishedTask
 
@@ -22,6 +24,7 @@ class ScheduledTask(NamedTuple):
     node_port: int
     node_path: str
     frequency: int
+    last_checksum: str
     last_backup: Optional[datetime] = None
 
     def should_run(self) -> bool:
@@ -41,7 +44,7 @@ class RunningTask(NamedTuple):
     def is_running(self):
         return self.process.is_alive()
 
-    def backup_commit(self) -> bool:
+    def backup_is_correct(self) -> bool:
         """
         Cleanup all backup unnecessary files, return True if backup is of, else False
 
@@ -55,6 +58,18 @@ class RunningTask(NamedTuple):
                 os.remove(self.write_file_path)
             if os.path.isfile(WIP_FILE_FORMAT % self.write_file_path):
                 os.remove(WIP_FILE_FORMAT % self.write_file_path)
+            return False
+
+    def backup_is_same(self) -> bool:
+        """
+        Checks if the backup is the same as the previous one
+
+        :return: a boolean
+        """
+        if os.path.isfile(SAME_FILE_FORMAT % self.write_file_path):
+            os.remove(SAME_FILE_FORMAT % self.write_file_path)
+            return True
+        else:
             return False
 
 
@@ -72,10 +87,12 @@ class BackupScheduler:
             for path, frequency in self.database.get_tasks_for_node(node_name):
                 finished_tasks = self.database.get_node_finished_tasks(node_name, path)
                 last_backup = (finished_tasks[0].timestamp if finished_tasks else None)
+                last_checksum = (finished_tasks[0].checksum if finished_tasks else "")
                 self.schedule.append(ScheduledTask(node_name=node_name, node_address=node_address,
                                                    node_port=node_port, node_path=path,
                                                    frequency=frequency,
-                                                   last_backup=last_backup))
+                                                   last_backup=last_backup,
+                                                   last_checksum=last_checksum))
 
     def _clean_backup_path(self):
         return
@@ -121,7 +138,7 @@ class BackupScheduler:
             if tasks_changed:
                 self._reload_schedule()
         except Exception as e:
-            BackupScheduler.logger.error("Errro handling client request: %s" % str(e))
+            BackupScheduler.logger.exception("Error handling client request")
             self.pipe_request_answer.send(("Error %s:" % str(e), data))
         self.pipe_request_answer.send(("OK", data))
 
@@ -132,10 +149,20 @@ class BackupScheduler:
         now_running_tasks = {}
         for node_data, task in self.running_tasks.items():
             if not task.is_running():
-                if task.backup_commit():
+                if task.backup_is_correct():
                     ft = FinishedTask(result_path=task.write_file_path,
                                       kb_size=os.path.getsize(task.write_file_path) / 1024,
-                                      timestamp=datetime.now())
+                                      timestamp=datetime.now(),
+                                      checksum=BackupFile(task.write_file_path).get_hash())
+                    self.database.register_finished_task(node_data[0], node_data[1], ft)
+                    BackupScheduler.logger.info("Backup for node %s and path %s finished succesfully" % node_data)
+                    self._reload_schedule()
+                elif task.backup_is_same():
+                    ft = self.database.get_node_finished_tasks(node_data[0], node_data[1])[0]
+                    ft = FinishedTask(result_path=ft.result_path,
+                                      kb_size=ft.kb_size,
+                                      timestamp=datetime.now(),
+                                      checksum=ft.checksum)
                     self.database.register_finished_task(node_data[0], node_data[1], ft)
                     BackupScheduler.logger.info("Backup for node %s and path %s finished succesfully" % node_data)
                     self._reload_schedule()
@@ -160,7 +187,8 @@ class BackupScheduler:
                 node_handler = NodeHandlerProcess(node_address=sched_task.node_address,
                                                   node_path=sched_task.node_path,
                                                   node_port=sched_task.node_port,
-                                                  write_file_path=write_file_path)
+                                                  write_file_path=write_file_path,
+                                                  previous_checksum=sched_task.last_checksum)
                 p = Process(target=node_handler)
                 p.start()
                 BackupScheduler.logger.debug("Backup order for node %s and path %s launched" %
@@ -181,9 +209,6 @@ class BackupScheduler:
             3. Launches new node handler processes for the backups that need to be done according last
             backup time, actual time and if there isnt a backup already running for that node and path
 
-        If the client controller pipe is broken:
-            * Creates a new client controller
-
         If other error happens and the process must die:
             * Kill all other processes then dies
         """
@@ -195,8 +220,9 @@ class BackupScheduler:
                     self._handle_client_request()
                 self._dispatch_running_tasks()
                 self._run_new_tasks()
-        except Exception:
+        except Exception as e:
             BackupScheduler.logger.exception("Aborting backup scheduler")
+            self.pipe_request_answer.close()
             for t in self.running_tasks.values():
                 if t.process.is_alive():
                     t.process.termitate()

@@ -2,27 +2,20 @@ import json
 import socket
 import unittest
 from multiprocessing import Process, Pipe
+from time import sleep
 
 from src.client_listener.client_listener import ClientListener
 
 
-class MockNodeHandler:
-    BARRIER = None
+class TestClientListener(unittest.TestCase):
+    def _launch_process(self, client_listener_send, client_listener_recv):
+        try:
+            client_listener = ClientListener(1234, 5, client_listener_send,
+                                             client_listener_recv)
+            client_listener()
+        except Exception as e:
+            print('cagada')
 
-    def __init__(self, node_address: str, node_port: int,
-                 node_path: str, write_file_path: str):
-        self.node_address = node_address
-        self.node_port = node_port
-        self.node_path = node_path
-        self.write_file_path = write_file_path
-
-    def __call__(self, *args, **kwargs):
-        open(self.write_file_path, "w").close()
-        open(self.write_file_path + ".CORRECT", "w").close()
-        MockNodeHandler.BARRIER.wait(timeout=10)
-
-
-class TestBackupScheduler(unittest.TestCase):
     def setUp(self):
         try:
             from pytest_cov.embed import cleanup_on_sigterm
@@ -30,11 +23,11 @@ class TestBackupScheduler(unittest.TestCase):
             pass
         else:
             cleanup_on_sigterm()
+        self.client_listener = None
         self.backup_scheduler_recv, client_listener_send = Pipe(False)
         client_listener_recv, self.backup_scheduler_send = Pipe(False)
-        client_listener = ClientListener(3333, 5, client_listener_send,
-                                         client_listener_recv)
-        self.p = Process(target=client_listener)
+        self.p = Process(target=self._launch_process,
+                         args=(client_listener_send, client_listener_recv))
         self.p.start()
 
     def tearDown(self) -> None:
@@ -44,8 +37,9 @@ class TestBackupScheduler(unittest.TestCase):
         self.backup_scheduler_recv.close()
 
     def test_send_and_receive_command(self):
+        sleep(3)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('localhost', 3333))
+        sock.connect(('localhost', 1234))
         sock.sendall('{"command": "dummy", "args": {"one": "one"}}'.encode('utf-8'))
         command, args = self.backup_scheduler_recv.recv()
         self.assertEqual(command, 'dummy')

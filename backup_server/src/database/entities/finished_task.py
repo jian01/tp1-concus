@@ -9,6 +9,7 @@ class FinishedTask(NamedTuple):
     result_path: str
     kb_size: float
     timestamp: datetime
+    checksum: str
 
     def to_dict(self):
         data = self._asdict()

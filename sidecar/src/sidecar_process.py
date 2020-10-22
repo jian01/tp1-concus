@@ -15,11 +15,13 @@ class SidecarProcess:
 
     def __init__(self, port, listen_backlog):
         self.backup_no = 0
-        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._server_socket.bind(('', port))
-        self._server_socket.listen(listen_backlog)
+        self.port = port
+        self.listen_backlog = listen_backlog
 
     def __call__(self):
+        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._server_socket.bind(('', self.port))
+        self._server_socket.listen(self.listen_backlog)
         process_list = []
         while True:
             client_sock = self.__accept_new_connection()
@@ -39,12 +41,12 @@ class SidecarProcess:
 
         def _send_file_to(filename, sock):
             file_size = os.stat(filename).st_size
-            sock.send(str(file_size).encode('utf-8'))
+            sock.sendall(str(file_size).encode('utf-8'))
             sock.recv(1024)
             with open(filename, "rb") as file:
                 while file_size > 0:
                     buffer = file.read(DEFAULT_SOCKET_BUFFER_SIZE)
-                    sock.send(buffer)
+                    sock.sendall(buffer)
                     file_size -= DEFAULT_SOCKET_BUFFER_SIZE
 
         try:
@@ -60,13 +62,16 @@ class SidecarProcess:
         file_checksum = backup_file.get_hash()
         if file_checksum == previous_checksum:
             SidecarProcess.logger.info("Previous checksum equals to actual data, skipping backup")
+            client_sock.sendall("SAME".encode("utf-8"))
             client_sock.close()
             return
+        else:
+            client_sock.sendall("OK".encode("utf-8"))
         try:
             _send_file_to(TMP_BACKUP_PATH % backup_no, client_sock)
             SidecarProcess.logger.debug("Backup file sent")
             client_sock.recv(1024).rstrip()
-            client_sock.send(file_checksum.encode("utf-8"))
+            client_sock.sendall(file_checksum.encode("utf-8"))
         except OSError as e:
             SidecarProcess.logger.exception("Error while writing socket %s" % (client_sock,))
             return

@@ -11,11 +11,13 @@ class ClientListener:
     def __init__(self, port, listen_backlog,
                  backup_scheduler_write: Pipe,
                  backup_scheduler_read: Pipe):
-        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._server_socket.bind(('', port))
-        self._server_socket.listen(listen_backlog)
+        self.port = port
+        self.listen_backlog = listen_backlog
         self.backup_scheduler_write = backup_scheduler_write
         self.backup_scheduler_read = backup_scheduler_read
+        self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._server_socket.bind(('', self.port))
+        self._server_socket.listen(self.listen_backlog)
 
     def __call__(self):
         while True:
@@ -45,7 +47,7 @@ class ClientListener:
             client_sock.close()
             raise e
         try:
-            client_sock.send(json.dumps({"message": message, "data": data}).encode("utf-8"))
+            client_sock.sendall(json.dumps({"message": message, "data": data}).encode("utf-8"))
         except OSError:
             ClientListener.logger.exception("Error writing through socket")
             client_sock.close()
