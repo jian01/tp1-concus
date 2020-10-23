@@ -4,9 +4,9 @@ import socket
 from typing import NoReturn
 
 from backup_utils.backup_file import BackupFile
+from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
 from backup_utils.multiprocess_logging import MultiprocessingLogger
 
-DEFAULT_SOCKET_BUFFER_SIZE = 4096
 CORRECT_FILE_FORMAT = '%s.CORRECT'
 WIP_FILE_FORMAT = '%s.WIP'
 SAME_FILE_FORMAT = '%s.SAME'
@@ -36,16 +36,7 @@ class NodeHandlerProcess:
         self.write_file_path = write_file_path
         self.previous_checksum = previous_checksum
 
-    @staticmethod
-    def _receive_file_in(sock, file):
-        file_size = int(sock.recv(1024))
-        sock.sendall("OK".encode('utf-8'))
-        while file_size > 0:
-            buffer = sock.recv(DEFAULT_SOCKET_BUFFER_SIZE)
-            file.write(buffer)
-            file_size -= len(buffer)
-
-    def __call__(self, *args, **kwargs) -> NoReturn:
+    def __call__(self) -> NoReturn:
         """
         Code for running the handler in a new process
 
@@ -64,27 +55,27 @@ class NodeHandlerProcess:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             sock.connect((self.node_address, self.node_port))
-            sock.sendall(json.dumps({"checksum": self.previous_checksum,
-                                     "path": self.node_path}).encode("utf-8"))
+            socket_transferer = BlockingSocketTransferer(sock)
+            socket_transferer.send_plain_text(json.dumps({"checksum": self.previous_checksum,
+                                                          "path": self.node_path}))
         except OSError as e:
             NodeHandlerProcess.logger.exception("Error while writing socket %s: %s" % (sock, e))
             NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %
                                            (self.node_address, self.node_port, self.node_path))
             return
-        if sock.recv(1024).decode('utf-8') == "SAME":
+        msg = socket_transferer.receive_plain_text()
+        if msg == "SAME":
             NodeHandlerProcess.logger.debug("The backup was the same")
             NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %
                                            (self.node_address, self.node_port, self.node_path))
             open(SAME_FILE_FORMAT % self.write_file_path, 'w').close()
-            sock.close()
             return
         open(WIP_FILE_FORMAT % self.write_file_path, 'w').close()
         data_file = open(self.write_file_path, 'ab')
         try:
-            self._receive_file_in(sock, data_file)
+            socket_transferer.receive_file_data(data_file)
             NodeHandlerProcess.logger.debug("File data received")
-            sock.sendall("OK".encode('utf-8'))
-            checksum = sock.recv(DEFAULT_SOCKET_BUFFER_SIZE).rstrip()
+            checksum = socket_transferer.receive_plain_text()
         except OSError as e:
             NodeHandlerProcess.logger.exception("Error while reading socket %s: %s" % (sock, e))
             NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %
@@ -92,11 +83,11 @@ class NodeHandlerProcess:
             return
         data_file.close()
         backup_file = BackupFile(self.write_file_path)
-        if backup_file.get_hash() == checksum.decode("utf-8"):
-            NodeHandlerProcess.logger.debug("Backup checksum: %s" % checksum.decode("utf-8"))
+        if backup_file.get_hash() == checksum:
+            NodeHandlerProcess.logger.debug("Backup checksum: %s" % checksum)
         else:
             NodeHandlerProcess.logger.error("Error verifying checksum. Local: %s vs Server: %s" %
-                                            (backup_file.get_hash(), checksum.decode("utf-8")))
+                                            (backup_file.get_hash(), checksum))
         open(CORRECT_FILE_FORMAT % self.write_file_path, 'w').close()
         os.remove(WIP_FILE_FORMAT % self.write_file_path)
         NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %

@@ -1,9 +1,9 @@
 import json
-import os
 import socket
 from multiprocessing import Process
 
 from backup_utils.backup_file import BackupFile
+from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
 from backup_utils.multiprocess_logging import MultiprocessingLogger
 
 TMP_BACKUP_PATH = "/tmp/%d"
@@ -38,19 +38,9 @@ class SidecarProcess:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
-
-        def _send_file_to(filename, sock):
-            file_size = os.stat(filename).st_size
-            sock.sendall(str(file_size).encode('utf-8'))
-            sock.recv(1024)
-            with open(filename, "rb") as file:
-                while file_size > 0:
-                    buffer = file.read(DEFAULT_SOCKET_BUFFER_SIZE)
-                    sock.sendall(buffer)
-                    file_size -= DEFAULT_SOCKET_BUFFER_SIZE
-
+        socket_transferer = BlockingSocketTransferer(client_sock)
         try:
-            msg = client_sock.recv(1024).rstrip()
+            msg = socket_transferer.receive_plain_text()
             msg = json.loads(msg)
             path, previous_checksum = msg['path'], msg['checksum']
             SidecarProcess.logger.debug("Previous checksum for path %s is '%s'" % (path, previous_checksum))
@@ -62,21 +52,22 @@ class SidecarProcess:
         file_checksum = backup_file.get_hash()
         if file_checksum == previous_checksum:
             SidecarProcess.logger.info("Previous checksum equals to actual data, skipping backup")
-            client_sock.sendall("SAME".encode("utf-8"))
+            socket_transferer.send_plain_text("SAME")
             client_sock.close()
             return
         else:
-            client_sock.sendall("OK".encode("utf-8"))
+            socket_transferer.send_plain_text("DIFF")
         try:
-            _send_file_to(TMP_BACKUP_PATH % backup_no, client_sock)
+            socket_transferer.send_file(TMP_BACKUP_PATH % backup_no)
             SidecarProcess.logger.debug("Backup file sent")
-            client_sock.recv(1024).rstrip()
-            client_sock.sendall(file_checksum.encode("utf-8"))
+            socket_transferer.send_plain_text(file_checksum)
         except OSError as e:
             SidecarProcess.logger.exception("Error while writing socket %s: %s" % (client_sock, e))
+            client_sock.close()
             return
         finally:
             client_sock.close()
+        return
 
     def __accept_new_connection(self):
         """
