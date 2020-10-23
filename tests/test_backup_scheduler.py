@@ -82,7 +82,6 @@ class TestBackupScheduler(unittest.TestCase):
                          ('127.0.0.1', 8080))
 
     def test_simple_add_task_and_check_done_same_data(self):
-        return
         self.client_listener_send.send(('add_node', {'name': 'prueba',
                                                      'address': '127.0.0.1',
                                                      'port': 8080}))
@@ -117,7 +116,6 @@ class TestBackupScheduler(unittest.TestCase):
         self.assertEqual(len(set([d['result_path'] for d in data])), 1)
 
     def test_simple_add_task_and_check_done_different_data(self):
-        return
         self.client_listener_send.send(('add_node', {'name': 'prueba',
                                                      'address': '127.0.0.1',
                                                      'port': 8080}))

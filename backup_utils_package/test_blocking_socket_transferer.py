@@ -20,6 +20,12 @@ class TestBlockingSocketTransferer(unittest.TestCase):
     TEST_PORT = 9000
 
     def setUp(self) -> None:
+        try:
+            from pytest_cov.embed import cleanup_on_sigterm
+        except ImportError:
+            pass
+        else:
+            cleanup_on_sigterm()
         self.barrier = Barrier(2)
         self.p = Process(target=process_sender, args=(self.barrier, TestBlockingSocketTransferer.TEST_PORT))
         self.p.start()
