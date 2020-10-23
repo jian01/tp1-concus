@@ -70,6 +70,12 @@ class NodeHandlerProcess:
                                            (self.node_address, self.node_port, self.node_path))
             open(SAME_FILE_FORMAT % self.write_file_path, 'w').close()
             return
+        if msg == "ABORT":
+            NodeHandlerProcess.logger.error("Abort order sent from sidecar")
+            NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %
+                                           (self.node_address, self.node_port, self.node_path))
+            open(SAME_FILE_FORMAT % self.write_file_path, 'w').close()
+            return
         open(WIP_FILE_FORMAT % self.write_file_path, 'w').close()
         data_file = open(self.write_file_path, 'ab')
         try:
@@ -88,6 +94,7 @@ class NodeHandlerProcess:
         else:
             NodeHandlerProcess.logger.error("Error verifying checksum. Local: %s vs Server: %s" %
                                             (backup_file.get_hash(), checksum))
+            return
         open(CORRECT_FILE_FORMAT % self.write_file_path, 'w').close()
         os.remove(WIP_FILE_FORMAT % self.write_file_path)
         NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %

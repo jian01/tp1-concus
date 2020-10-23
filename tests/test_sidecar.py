@@ -60,3 +60,11 @@ class TestSidecar(unittest.TestCase):
         sleep(5)
         node_handler_process()
         self.assertTrue(os.path.exists('/tmp/backup_output/out.SAME'))
+
+    def test_node_handler_ends_when_unexistent_path(self):
+        node_handler_process = NodeHandlerProcess('localhost', TestSidecar.PORT,
+                                                  '/tmp/example2',
+                                                  '/tmp/backup_output/out',
+                                                  "dummy")
+        sleep(5)
+        node_handler_process()

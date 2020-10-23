@@ -72,3 +72,8 @@ class BlockingSocketTransferer:
             recv_size += len(new_data)
         self.socket.settimeout(None)
         return result
+
+    def close(self):
+        self.send_plain_text("ABORT")
+        self.socket.shutdown(socket.SHUT_WR)
+        self.socket.close()

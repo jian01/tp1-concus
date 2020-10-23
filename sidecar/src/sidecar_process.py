@@ -27,7 +27,9 @@ class SidecarProcess:
             client_sock = self.__accept_new_connection()
             p = Process(target=self.__handle_client_connection, args=(client_sock, self.backup_no))
             p.start()
+            client_sock.close()
             self.backup_no += 1
+            self.backup_no = self.backup_no % self.listen_backlog
             process_list = [p for p in process_list if p.is_alive()] + [p]
 
     @staticmethod
@@ -46,14 +48,19 @@ class SidecarProcess:
             SidecarProcess.logger.debug("Previous checksum for path %s is '%s'" % (path, previous_checksum))
         except OSError as e:
             SidecarProcess.logger.exception("Error while reading socket %s: %s" % (client_sock, e))
-            client_sock.close()
+            socket_transferer.close()
             return
-        backup_file = BackupFile.create_from_path(path, TMP_BACKUP_PATH % backup_no)
+        try:
+            backup_file = BackupFile.create_from_path(path, TMP_BACKUP_PATH % backup_no)
+        except Exception:
+            SidecarProcess.logger.exception("Error while making backup file")
+            socket_transferer.close()
+            return
         file_checksum = backup_file.get_hash()
         if file_checksum == previous_checksum:
             SidecarProcess.logger.info("Previous checksum equals to actual data, skipping backup")
             socket_transferer.send_plain_text("SAME")
-            client_sock.close()
+            socket_transferer.close()
             return
         else:
             socket_transferer.send_plain_text("DIFF")
@@ -63,10 +70,10 @@ class SidecarProcess:
             socket_transferer.send_plain_text(file_checksum)
         except OSError as e:
             SidecarProcess.logger.exception("Error while writing socket %s: %s" % (client_sock, e))
-            client_sock.close()
+            socket_transferer.close()
             return
         finally:
-            client_sock.close()
+            socket_transferer.close()
         return
 
     def __accept_new_connection(self):
