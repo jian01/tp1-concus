@@ -20,6 +20,7 @@ services:
     entrypoint: python3 /__main__.py
     environment:
       - PORT=2222
+      - MAXIMUM_CONCURRENT_BACKUPS=3
     networks:
       - testing_net
     volumes:
