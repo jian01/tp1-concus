@@ -132,3 +132,4 @@ dmypy.json
 *.idea
 
 backup_volume/*
+node1_volume/*
