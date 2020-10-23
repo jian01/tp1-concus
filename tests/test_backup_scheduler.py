@@ -53,6 +53,8 @@ class TestBackupScheduler(unittest.TestCase):
         database = DiskDatabase('/tmp/disk_db_concus')
         shutil.rmtree('/tmp/backup_scheduler_path', ignore_errors=True)
         os.mkdir('/tmp/backup_scheduler_path')
+        with open('/tmp/backup_scheduler_path/trash', 'w') as trash_file:
+            trash_file.write("trash")
         backup_scheduler_recv, self.client_listener_send = Pipe(False)
         self.client_listener_recv, backup_scheduler_send = Pipe(False)
         backup_scheduler = BackupScheduler('/tmp/backup_scheduler_path', database,
@@ -68,6 +70,13 @@ class TestBackupScheduler(unittest.TestCase):
         shutil.rmtree('/tmp/data_for_backup', ignore_errors=True)
         node_handler_process.NodeHandlerProcess = self.node_handler
         self.client_listener_send.close()
+
+    def test_cleanup_at_start(self):
+        self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                          'path': '/path'}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.assertFalse(os.path.exists('/tmp/backup_scheduler_path/trash'))
 
     def test_simple_add_node(self):
         self.client_listener_send.send(('add_node', {'name': 'prueba',

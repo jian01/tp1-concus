@@ -94,8 +94,23 @@ class BackupScheduler:
                                                    last_backup=last_backup,
                                                    last_checksum=last_checksum))
 
-    def _clean_backup_path(self):
-        return
+    def _clean_backup_path(self) -> NoReturn:
+        """
+        Cleans all files that are not part of registered backups
+        """
+        valid_file_prefixes = set()
+        node_names = self.database.get_node_names()
+        for node_name in node_names:
+            for node_path, _ in self.database.get_tasks_for_node(node_name):
+                for ft in self.database.get_node_finished_tasks(node_name, node_path):
+                    valid_file_prefixes.update([ft.result_path])
+        valid_file_prefixes.update([task.write_file_path for task in self.running_tasks.values()])
+        files_in_directory = os.listdir(self.backup_path)
+        files_to_delete = [f for f in files_in_directory if f.split(".")[0] not in valid_file_prefixes]
+        for file_to_delete in files_to_delete:
+            os.remove(self.backup_path + "/" + file_to_delete)
+
+
 
     def __init__(self, backup_path: str, database: Database,
                  pipe_request_read: Pipe, pipe_request_answer: Pipe):
@@ -157,6 +172,7 @@ class BackupScheduler:
                     self.database.register_finished_task(node_data[0], node_data[1], ft)
                     BackupScheduler.logger.info("Backup for node %s and path %s finished succesfully" % node_data)
                     self._reload_schedule()
+                    self._clean_backup_path()
                 elif task.backup_is_same():
                     ft = self.database.get_node_finished_tasks(node_data[0], node_data[1])[0]
                     ft = FinishedTask(result_path=ft.result_path,
@@ -166,6 +182,7 @@ class BackupScheduler:
                     self.database.register_finished_task(node_data[0], node_data[1], ft)
                     BackupScheduler.logger.info("Backup for node %s and path %s finished succesfully" % node_data)
                     self._reload_schedule()
+                    self._clean_backup_path()
                 else:
                     BackupScheduler.logger.error("Backup for node %s and path %s failed" % node_data)
             else:

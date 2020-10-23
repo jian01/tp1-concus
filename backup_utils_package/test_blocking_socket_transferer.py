@@ -1,7 +1,7 @@
 import socket
 import unittest
 from multiprocessing import Barrier, Process
-
+import random
 from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
 
 
@@ -17,7 +17,7 @@ def process_sender(barrier, port):
 
 
 class TestBlockingSocketTransferer(unittest.TestCase):
-    TEST_PORT = 9000
+    TEST_PORT = random.randint(8000,9000)
 
     def setUp(self) -> None:
         try:
@@ -31,7 +31,7 @@ class TestBlockingSocketTransferer(unittest.TestCase):
         self.p.start()
 
     def tearDown(self) -> None:
-        self.p.terminate()
+        self.p.join()
 
     def test_send_text(self):
         self.barrier.wait()
