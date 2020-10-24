@@ -13,6 +13,7 @@ run:
 run_test_commands:
 	netcat localhost 1111 <command1.json
 	netcat localhost 1111 <command2.json
+	netcat localhost 1111 <command3.json
 .PHONY: run_test_commands
 
 logs:

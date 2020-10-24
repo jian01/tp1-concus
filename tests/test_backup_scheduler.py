@@ -159,3 +159,4 @@ class TestBackupScheduler(unittest.TestCase):
             self.assertEqual(message, "OK")
         self.assertEqual(len(data), 2)
         self.assertEqual(len(set([d['result_path'] for d in data])), 2)
+        self.assertTrue(len(os.listdir('/tmp/backup_scheduler_path')) >= 2)

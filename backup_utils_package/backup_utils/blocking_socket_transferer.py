@@ -73,7 +73,9 @@ class BlockingSocketTransferer:
         self.socket.settimeout(None)
         return result
 
-    def close(self):
+    def abort(self):
         self.send_plain_text("ABORT")
+
+    def close(self):
         self.socket.shutdown(socket.SHUT_WR)
         self.socket.close()

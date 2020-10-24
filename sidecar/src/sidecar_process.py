@@ -48,19 +48,19 @@ class SidecarProcess:
             SidecarProcess.logger.debug("Previous checksum for path %s is '%s'" % (path, previous_checksum))
         except OSError as e:
             SidecarProcess.logger.exception("Error while reading socket %s: %s" % (client_sock, e))
-            socket_transferer.close()
+            socket_transferer.abort()
             return
         try:
             backup_file = BackupFile.create_from_path(path, TMP_BACKUP_PATH % backup_no)
         except Exception:
             SidecarProcess.logger.exception("Error while making backup file")
-            socket_transferer.close()
+            socket_transferer.abort()
             return
         file_checksum = backup_file.get_hash()
         if file_checksum == previous_checksum:
             SidecarProcess.logger.info("Previous checksum equals to actual data, skipping backup")
             socket_transferer.send_plain_text("SAME")
-            socket_transferer.close()
+            socket_transferer.abort()
             return
         else:
             socket_transferer.send_plain_text("DIFF")
@@ -70,7 +70,7 @@ class SidecarProcess:
             socket_transferer.send_plain_text(file_checksum)
         except OSError as e:
             SidecarProcess.logger.exception("Error while writing socket %s: %s" % (client_sock, e))
-            socket_transferer.close()
+            socket_transferer.abort()
             return
         finally:
             socket_transferer.close()

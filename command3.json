@@ -1,0 +1,8 @@
+{
+  "command": "add_task",
+  "args": {
+    "name": "node1",
+    "path": "/data/falsa",
+    "frequency": 1
+  }
+}

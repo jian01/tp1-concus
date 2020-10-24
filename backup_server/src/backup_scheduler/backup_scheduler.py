@@ -106,7 +106,7 @@ class BackupScheduler:
                     valid_file_prefixes.update([ft.result_path])
         valid_file_prefixes.update([task.write_file_path for task in self.running_tasks.values()])
         files_in_directory = os.listdir(self.backup_path)
-        files_to_delete = [f for f in files_in_directory if f.split(".")[0] not in valid_file_prefixes]
+        files_to_delete = [f for f in files_in_directory if self.backup_path + "/" + f.split(".")[0] not in valid_file_prefixes]
         for file_to_delete in files_to_delete:
             os.remove(self.backup_path + "/" + file_to_delete)
 
