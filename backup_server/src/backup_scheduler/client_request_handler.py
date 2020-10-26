@@ -50,6 +50,14 @@ class ClientRequestHandler:
         finished_tasks = [ft.to_dict() for ft in finished_tasks]
         return finished_tasks, False
 
+    def delete_scheduled_task(self, name: str, path: str) -> Tuple[Optional[Any], bool]:
+        self.database.delete_scheduled_task(name, path)
+        return None, True
+
+    def delete_node(self, name: str) -> Tuple[Optional[Any], bool]:
+        self.database.delete_node(name)
+        return None, True
+
     def parse_command(self, command: str, kwargs: Dict[str, Any]) -> Tuple[Optional[Any], bool]:
         """
         Runs a command, if the command does not exist does nothing
@@ -63,6 +71,10 @@ class ClientRequestHandler:
         elif command == "add_task":
             return self.add_task(**kwargs)
         elif command == "query_backups":
+            return self.query_backups(**kwargs)
+        elif command == "delete_scheduled_task":
+            return self.query_backups(**kwargs)
+        elif command == "delete_node":
             return self.query_backups(**kwargs)
         else:
             raise Exception('Unexistent command')

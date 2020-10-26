@@ -129,7 +129,7 @@ class TestDiskDatabase(unittest.TestCase):
             tasks.insert(0, ft)
             self.database.register_finished_task('node', '/home', ft)
             self.database = DiskDatabase('/tmp/disk_db_concus')
-        self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), tasks[:10])
+        self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), tasks)
 
     def test_recover_2n_steps_add_finished_tasks(self):
         self.database.register_node('node', 'address', 1111)
@@ -141,4 +141,22 @@ class TestDiskDatabase(unittest.TestCase):
             self.database.register_finished_task('node', '/home', ft)
             if i % 2 == 0:
                 self.database = DiskDatabase('/tmp/disk_db_concus')
-        self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), tasks[:10])
+        self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), tasks)
+
+    def test_recover_2n_steps_add_finished_tasks_and_delete_node(self):
+        self.database.register_node('node', 'address', 1111)
+        self.database.add_scheduled_task('node', '/home', 4)
+        tasks = []
+        for i in range(250):
+            ft = FinishedTask('/tmp/backup1', 223.43, datetime.now(), checksum="")
+            tasks.insert(0, ft)
+            self.database.register_finished_task('node', '/home', ft)
+            if i % 2 == 0:
+                self.database = DiskDatabase('/tmp/disk_db_concus')
+        self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), tasks)
+        self.database.delete_scheduled_task('node', '/home')
+        self.database = DiskDatabase('/tmp/disk_db_concus')
+        self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), tasks)
+        self.database.delete_node('node')
+        self.database = DiskDatabase('/tmp/disk_db_concus')
+        self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), [])

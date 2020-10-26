@@ -16,6 +16,7 @@ from src.database.entities.finished_task import FinishedTask
 SECONDS_TO_MINUTES = 60
 WRITE_FILE_PATH_TEMPLATE = '%s/backup_%d_%s_%s'
 SECONDS_TO_WAIT_CLIENT = 10
+MAX_FINISHED_TASKS_TO_STORE = 10
 
 
 class ScheduledTask(NamedTuple):
@@ -102,7 +103,7 @@ class BackupScheduler:
         node_names = self.database.get_node_names()
         for node_name in node_names:
             for node_path, _ in self.database.get_tasks_for_node(node_name):
-                for ft in self.database.get_node_finished_tasks(node_name, node_path):
+                for ft in self.database.get_node_finished_tasks(node_name, node_path)[:MAX_FINISHED_TASKS_TO_STORE]:
                     valid_file_prefixes.update([ft.result_path])
         valid_file_prefixes.update([task.write_file_path for task in self.running_tasks.values()])
         files_in_directory = os.listdir(self.backup_path)

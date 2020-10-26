@@ -13,7 +13,6 @@ LOGFILE_PATH = "%s/log"
 DATABASE_PATH = "%s/database"
 MAX_LOGSIZE = 4000
 MAX_UNCOMMITED = 200
-MAX_FINISHED_TASKS = 10
 
 
 class DiskDatabase(Database):
@@ -192,8 +191,6 @@ class DiskDatabase(Database):
         if task_data in database[node_name]['finished_tasks']:
             return
         database[node_name]['finished_tasks'].insert(0, task_data)
-        if len(database[node_name]['finished_tasks']) > MAX_FINISHED_TASKS:
-            database[node_name]['finished_tasks'] = database[node_name]['finished_tasks'][:MAX_FINISHED_TASKS]
 
     def register_finished_task(self, node_name: str, node_path: str, task: FinishedTask) -> NoReturn:
         """
@@ -221,7 +218,12 @@ class DiskDatabase(Database):
             return []
         return [FinishedTask.from_dict(ft) for ft in self.database[node_name]['finished_tasks']]
 
-    @abstractmethod
+    @staticmethod
+    def _delete_scheduled_task(database, node_name: str, node_path: str):
+        if node_name not in database:
+            return
+        database[node_name]['tasks'] = [t for t in database[node_name]['tasks'] if t[0] != node_path]
+
     def delete_scheduled_task(self, node_name: str, node_path: str) -> NoReturn:
         """
         Deletes a scheduled task for a node.
@@ -231,8 +233,15 @@ class DiskDatabase(Database):
         :param node_name: the node name
         :param node_path: the node path of the task
         """
+        self._write_operation('_delete_scheduled_task', [node_name, node_path],
+                              use_log=True)
 
-    @abstractmethod
+    @staticmethod
+    def _delete_node(database, node_name: str):
+        if node_name not in database:
+            return
+        del database[node_name]
+
     def delete_node(self, node_name: str) -> NoReturn:
         """
         Deletes a node
@@ -241,3 +250,5 @@ class DiskDatabase(Database):
 
         :param node_name: the node name
         """
+        self._write_operation('_delete_node', [node_name],
+                              use_log=True)
