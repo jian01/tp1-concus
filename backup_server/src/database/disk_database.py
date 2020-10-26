@@ -1,7 +1,6 @@
 import json
 import os
 import pickle
-from abc import abstractmethod
 from typing import NoReturn, List, Dict, Tuple, Set
 
 from src.database.entities.finished_task import FinishedTask

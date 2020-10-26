@@ -1,7 +1,8 @@
-import socket
-from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
 import argparse
 import json
+import socket
+
+from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
 
 parser = argparse.ArgumentParser(description='Sends a command to backup server')
 parser.add_argument('--port', required=True, type=int,

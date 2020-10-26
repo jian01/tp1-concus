@@ -7,6 +7,7 @@ services:
     environment:
       - PORT=1111
       - BACKUP_DATA_PATH=/backup_data
+      - MAX_BACKUP_PROCESSES=10
     networks:
       - testing_net
     ports:

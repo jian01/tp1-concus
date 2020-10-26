@@ -2,12 +2,11 @@ import os
 import shutil
 import unittest
 from multiprocessing import Process, Pipe, Barrier
+from threading import BrokenBarrierError
 
 from backup_utils.backup_file import BackupFile
-
 from src.backup_scheduler import node_handler_process
 from src.database.disk_database import DiskDatabase
-from threading import BrokenBarrierError
 
 
 class MockNodeHandler:

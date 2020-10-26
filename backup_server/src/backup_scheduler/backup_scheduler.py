@@ -1,13 +1,12 @@
 import base64
 import os
+from collections import deque
 from datetime import datetime, timezone
 from multiprocessing import Pipe, Process
 from typing import NoReturn, NamedTuple, Optional
 
 from backup_utils.backup_file import BackupFile
 from backup_utils.multiprocess_logging import MultiprocessingLogger
-from collections import deque
-
 from src.backup_scheduler.client_request_handler import ClientRequestHandler
 from src.backup_scheduler.node_handler_process import NodeHandlerProcess, CORRECT_FILE_FORMAT, WIP_FILE_FORMAT, \
     SAME_FILE_FORMAT
@@ -108,11 +107,10 @@ class BackupScheduler:
                     valid_file_prefixes.update([ft.result_path])
         valid_file_prefixes.update([task.write_file_path for task in self.running_tasks.values()])
         files_in_directory = os.listdir(self.backup_path)
-        files_to_delete = [f for f in files_in_directory if self.backup_path + "/" + f.split(".")[0] not in valid_file_prefixes]
+        files_to_delete = [f for f in files_in_directory if
+                           self.backup_path + "/" + f.split(".")[0] not in valid_file_prefixes]
         for file_to_delete in files_to_delete:
             os.remove(self.backup_path + "/" + file_to_delete)
-
-
 
     def __init__(self, backup_path: str, database: Database,
                  pipe_request_read: Pipe, pipe_request_answer: Pipe,
@@ -202,7 +200,8 @@ class BackupScheduler:
         for sched_task in self.schedule:
             if (sched_task.node_name, sched_task.node_path) in self.running_tasks:
                 continue
-            if sched_task.should_run() and (sched_task.node_name, sched_task.node_path, sched_task.last_checksum) not in self.task_queue:
+            if sched_task.should_run() and (
+            sched_task.node_name, sched_task.node_path, sched_task.last_checksum) not in self.task_queue:
                 self.task_queue.appendleft((sched_task.node_name, sched_task.node_path, sched_task.last_checksum))
             number_of_running_tasks = len(self.running_tasks)
             for queued_task in range(min(self.max_processes - number_of_running_tasks, len(self.task_queue))):

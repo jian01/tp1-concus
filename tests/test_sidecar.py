@@ -6,9 +6,8 @@ import unittest
 from multiprocessing import Process
 from time import sleep
 
-from backup_utils.backup_file import BackupFile
-
 from backup_server.src.backup_scheduler.node_handler_process import NodeHandlerProcess
+from backup_utils.backup_file import BackupFile
 from sidecar.src.sidecar_process import SidecarProcess
 
 

@@ -2,8 +2,8 @@ import json
 import socket
 from multiprocessing import Pipe
 
-from backup_utils.multiprocess_logging import MultiprocessingLogger
 from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
+from backup_utils.multiprocess_logging import MultiprocessingLogger
 
 
 class ClientListener:

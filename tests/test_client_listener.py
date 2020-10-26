@@ -4,12 +4,13 @@ import unittest
 from multiprocessing import Process, Pipe, Barrier
 from time import sleep
 
-from src.client_listener.client_listener import ClientListener
 from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
+from src.client_listener.client_listener import ClientListener
 
 
 class TestClientListener(unittest.TestCase):
     PORT = 5000
+
     def _launch_process(self, client_listener_send, client_listener_recv):
         self.backup_scheduler_send.close()
         try:

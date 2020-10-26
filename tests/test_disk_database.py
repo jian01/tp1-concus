@@ -167,7 +167,7 @@ class TestDiskDatabase(unittest.TestCase):
             for j in range(4):
                 self.database.add_scheduled_task('node%d' % i, '/%d' % j, j)
                 self.database = DiskDatabase('/tmp/disk_db_concus')
-            self.database.delete_node("coso%d" % i )
+            self.database.delete_node("coso%d" % i)
             self.database.delete_scheduled_task("node%d" % i, '/tmp/%d' % i)
         for i in range(324):
             self.assertEqual(self.database.get_tasks_for_node('node%d' % i),
