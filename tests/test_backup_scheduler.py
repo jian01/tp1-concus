@@ -7,6 +7,7 @@ from backup_utils.backup_file import BackupFile
 
 from src.backup_scheduler import node_handler_process
 from src.database.disk_database import DiskDatabase
+from threading import BrokenBarrierError
 
 
 class MockNodeHandler:
@@ -58,7 +59,7 @@ class TestBackupScheduler(unittest.TestCase):
         backup_scheduler_recv, self.client_listener_send = Pipe(False)
         self.client_listener_recv, backup_scheduler_send = Pipe(False)
         backup_scheduler = BackupScheduler('/tmp/backup_scheduler_path', database,
-                                           backup_scheduler_recv, backup_scheduler_send)
+                                           backup_scheduler_recv, backup_scheduler_send, 10)
         self.p = Process(target=backup_scheduler)
         self.p.start()
 
@@ -160,3 +161,78 @@ class TestBackupScheduler(unittest.TestCase):
         self.assertEqual(len(data), 2)
         self.assertEqual(len(set([d['result_path'] for d in data])), 2)
         self.assertTrue(len(os.listdir('/tmp/backup_scheduler_path')) >= 2)
+
+    def test_simple_add_task_and_delete_task(self):
+        self.client_listener_send.send(('add_node', {'name': 'prueba',
+                                                     'address': '127.0.0.1',
+                                                     'port': 8080}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                          'path': '/path'}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.assertEqual(len(data), 0)
+        self.client_listener_send.send(('add_task', {'name': 'prueba',
+                                                     'path': '/path',
+                                                     'frequency': 1}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.barrier.wait()
+        data = []
+        while not data:
+            self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                              'path': '/path'}))
+            message, data = self.client_listener_recv.recv()
+            self.assertEqual(message, "OK")
+        self.assertEqual(len(data), 1)
+        self.assertTrue(data[0]['kb_size'] > 0)
+        with open('/tmp/data_for_backup/data', 'w') as data_file:
+            data_file.write("Lorem Ipsum dolor sit amet")
+        self.client_listener_send.send(('delete_scheduled_task',
+                                        {'name': 'prueba', 'path': '/path'}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        with self.assertRaises(BrokenBarrierError):
+            self.barrier.wait(timeout=30.0)
+        self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                          'path': '/path'}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.assertEqual(len(data), 1)
+
+    def test_simple_add_task_and_delete_node(self):
+        self.client_listener_send.send(('add_node', {'name': 'prueba',
+                                                     'address': '127.0.0.1',
+                                                     'port': 8080}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                          'path': '/path'}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.assertEqual(len(data), 0)
+        self.client_listener_send.send(('add_task', {'name': 'prueba',
+                                                     'path': '/path',
+                                                     'frequency': 1}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.barrier.wait()
+        data = []
+        while not data:
+            self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                              'path': '/path'}))
+            message, data = self.client_listener_recv.recv()
+            self.assertEqual(message, "OK")
+        self.assertEqual(len(data), 1)
+        self.assertTrue(data[0]['kb_size'] > 0)
+        with open('/tmp/data_for_backup/data', 'w') as data_file:
+            data_file.write("Lorem Ipsum dolor sit amet")
+        self.client_listener_send.send(('delete_node', {'name': 'prueba'}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.client_listener_send.send(('query_backups', {'name': 'prueba',
+                                                          'path': '/path'}))
+        message, data = self.client_listener_recv.recv()
+        self.assertEqual(message, "OK")
+        self.assertEqual(len(data), 0)

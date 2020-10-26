@@ -160,3 +160,28 @@ class TestDiskDatabase(unittest.TestCase):
         self.database.delete_node('node')
         self.database = DiskDatabase('/tmp/disk_db_concus')
         self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), [])
+
+    def test_delete_unexistent_stuff(self):
+        for i in range(324):
+            self.database.register_node('node%d' % i, 'address', 1111)
+            for j in range(4):
+                self.database.add_scheduled_task('node%d' % i, '/%d' % j, j)
+                self.database = DiskDatabase('/tmp/disk_db_concus')
+            self.database.delete_node("coso%d" % i )
+            self.database.delete_scheduled_task("node%d" % i, '/tmp/%d' % i)
+        for i in range(324):
+            self.assertEqual(self.database.get_tasks_for_node('node%d' % i),
+                             [('/0', 0), ('/1', 1), ('/2', 2), ('/3', 3)])
+
+    def test_error_and_recover(self):
+        self.database.register_node('node', 'address', 1111)
+        self.database.add_scheduled_task('node', '/home', 4)
+        ft1 = FinishedTask('/tmp/backup1', 223.43, datetime.now(), checksum="")
+        with self.assertRaises(UnexistentNodeError):
+            self.database.register_finished_task('node', '/home2', ft1)
+        with self.assertRaises(UnexistentNodeError):
+            self.database.get_node_address('node1')
+        with self.assertRaises(UnexistentNodeError):
+            self.database.add_scheduled_task('node1', '/path', 1)
+        self.database = DiskDatabase('/tmp/disk_db_concus')
+        self.assertEqual(('address', 1111), self.database.get_node_address('node'))

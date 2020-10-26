@@ -73,8 +73,8 @@ class ClientRequestHandler:
         elif command == "query_backups":
             return self.query_backups(**kwargs)
         elif command == "delete_scheduled_task":
-            return self.query_backups(**kwargs)
+            return self.delete_scheduled_task(**kwargs)
         elif command == "delete_node":
-            return self.query_backups(**kwargs)
+            return self.delete_node(**kwargs)
         else:
             raise Exception('Unexistent command')

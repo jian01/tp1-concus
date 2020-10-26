@@ -6,6 +6,7 @@ from typing import NoReturn, NamedTuple, Optional
 
 from backup_utils.backup_file import BackupFile
 from backup_utils.multiprocess_logging import MultiprocessingLogger
+from collections import deque
 
 from src.backup_scheduler.client_request_handler import ClientRequestHandler
 from src.backup_scheduler.node_handler_process import NodeHandlerProcess, CORRECT_FILE_FORMAT, WIP_FILE_FORMAT, \
@@ -114,7 +115,8 @@ class BackupScheduler:
 
 
     def __init__(self, backup_path: str, database: Database,
-                 pipe_request_read: Pipe, pipe_request_answer: Pipe):
+                 pipe_request_read: Pipe, pipe_request_answer: Pipe,
+                 max_processes_for_tasks: int):
         """
         Initializes the backup scheduler
 
@@ -122,6 +124,7 @@ class BackupScheduler:
         :param database: the database to use
         :param pipe_request_read: the read end pipe to handle controller commands
         :param pipe_request_answer: the read end pipe to handle controller commands
+        :param max_processes_for_tasks: the maximum number of processes for tasks
         """
         self.backup_path = backup_path
         self.database = database
@@ -131,6 +134,8 @@ class BackupScheduler:
         self.client_controller_process = None
         self.running_tasks = {}
         self.command_parser = ClientRequestHandler(database)
+        self.task_queue = deque()
+        self.max_processes = max_processes_for_tasks
 
     @staticmethod
     def safe_base64(text: str) -> str:
@@ -197,21 +202,26 @@ class BackupScheduler:
         for sched_task in self.schedule:
             if (sched_task.node_name, sched_task.node_path) in self.running_tasks:
                 continue
-            if sched_task.should_run():
+            if sched_task.should_run() and (sched_task.node_name, sched_task.node_path, sched_task.last_checksum) not in self.task_queue:
+                self.task_queue.appendleft((sched_task.node_name, sched_task.node_path, sched_task.last_checksum))
+            number_of_running_tasks = len(self.running_tasks)
+            for queued_task in range(min(self.max_processes - number_of_running_tasks, len(self.task_queue))):
+                node_name, node_path, last_checksum = self.task_queue.pop()
+                node_address, node_port = self.database.get_node_address(node_name)
                 write_file_path = WRITE_FILE_PATH_TEMPLATE % (self.backup_path,
                                                               datetime.now().replace(tzinfo=timezone.utc).timestamp(),
-                                                              sched_task.node_name,
-                                                              self.safe_base64(sched_task.node_path))
-                node_handler = NodeHandlerProcess(node_address=sched_task.node_address,
-                                                  node_path=sched_task.node_path,
-                                                  node_port=sched_task.node_port,
+                                                              node_name,
+                                                              self.safe_base64(node_path))
+                node_handler = NodeHandlerProcess(node_address=node_address,
+                                                  node_path=node_path,
+                                                  node_port=node_port,
                                                   write_file_path=write_file_path,
-                                                  previous_checksum=sched_task.last_checksum)
+                                                  previous_checksum=last_checksum)
                 p = Process(target=node_handler)
                 p.start()
                 BackupScheduler.logger.debug("Backup order for node %s and path %s launched" %
-                                             (sched_task.node_name, sched_task.node_path))
-                self.running_tasks[(sched_task.node_name, sched_task.node_path)] = RunningTask(write_file_path, p)
+                                             (node_name, node_path))
+                self.running_tasks[(node_name, node_path)] = RunningTask(write_file_path, p)
 
     def __call__(self) -> NoReturn:
         """

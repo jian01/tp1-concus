@@ -12,6 +12,7 @@ def main() -> int:
     port = int(os.getenv('PORT'))
     listen_backlog = 10
     backup_data_path = os.getenv('BACKUP_DATA_PATH')
+    max_backup_processes = int(os.getenv('MAX_BACKUP_PROCESSES'))
 
     backup_scheduler_recv, client_listener_send = Pipe(False)
     client_listener_recv, backup_scheduler_send = Pipe(False)
@@ -19,7 +20,7 @@ def main() -> int:
     database = DiskDatabase(backup_data_path + "/database")
     backup_scheduler = BackupScheduler(backup_data_path + "/data",
                                        database, backup_scheduler_recv,
-                                       backup_scheduler_send)
+                                       backup_scheduler_send, max_backup_processes)
     client_listener = ClientListener(port, listen_backlog,
                                      client_listener_send, client_listener_recv)
     p = Process(target=client_listener)
