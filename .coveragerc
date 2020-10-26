@@ -5,3 +5,4 @@ omit =
     # omit main, it wont be used in production
     *__main__.py
     setup.py
+    run_command.py

@@ -3,6 +3,7 @@ import socket
 from multiprocessing import Pipe
 
 from backup_utils.multiprocess_logging import MultiprocessingLogger
+from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
 
 
 class ClientListener:
@@ -32,26 +33,34 @@ class ClientListener:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
+        socket_transferer = BlockingSocketTransferer(client_sock)
         try:
-            msg = client_sock.recv(2048).rstrip()
+            msg = socket_transferer.receive_plain_text()
         except OSError:
-            ClientListener.logger.error("Error while reading socket {}".format(client_sock))
-            client_sock.close()
+            ClientListener.logger.exception("Error while reading socket {}".format(client_sock))
+            socket_transferer.abort()
             return
-        parsed_msg = json.loads(msg)
+        try:
+            parsed_msg = json.loads(msg)
+        except json.decoder.JSONDecodeError as e:
+            ClientListener.logger.exception("Error parsing json")
+            socket_transferer.send_plain_text(json.dumps({"message": "ERROR", "data": str(e)}))
+            socket_transferer.close()
+            return
         self.backup_scheduler_write.send((parsed_msg['command'], parsed_msg['args']))
         try:
             message, data = self.backup_scheduler_read.recv()
         except EOFError as e:
             ClientListener.logger.exception("Backup scheduler death")
-            client_sock.close()
+            socket_transferer.abort()
             raise e
         try:
-            client_sock.sendall(json.dumps({"message": message, "data": data}).encode("utf-8"))
+            socket_transferer.send_plain_text(json.dumps({"message": message, "data": data}))
         except OSError:
             ClientListener.logger.exception("Error writing through socket")
-            client_sock.close()
+            socket_transferer.abort()
             return
+        socket_transferer.close()
 
     def __accept_new_connection(self):
         """
