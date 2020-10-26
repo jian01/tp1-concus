@@ -2,7 +2,7 @@
 omit =
     # omit everything in /test
     ./tests/*
-    test_*
+    *test_*
     # omit main, it wont be used in production
     *__main__.py
     setup.py
