@@ -111,6 +111,13 @@ class TestDiskDatabase(unittest.TestCase):
         self.database.register_finished_task('node', '/home', ft1)
         self.assertEqual(self.database.get_node_finished_tasks('node', '/home'), [ft1])
 
+    def test_add_one_finished_task_and_query_for_other(self):
+        self.database.register_node('node', 'address', 1111)
+        self.database.add_scheduled_task('node', '/home', 4)
+        ft1 = FinishedTask('/tmp/backup1', 223.43, datetime.now(), checksum="")
+        self.database.register_finished_task('node', '/home', ft1)
+        self.assertEqual(self.database.get_node_finished_tasks('node', '/tmp'), [])
+
     def test_add_finished_task_errors(self):
         self.database.register_node('node', 'address', 1111)
         self.database.add_scheduled_task('node', '/home', 4)

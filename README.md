@@ -12,7 +12,7 @@ python run_command.py --address localhost --port 1111 --command query_backups --
 
 # Sacar tarea
 
-python run_command.py --address localhost --port 1111 --command delete_scheduled_task --args '{"name": "node1", "path": "/data/falsa"}'
+python run_command.py --address localhost --port 1111 --command delete_scheduled_task --args '{"name": "node3", "path": "/data/falsa"}'
 
 # Borrar nodo
 

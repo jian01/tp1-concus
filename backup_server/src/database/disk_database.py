@@ -113,7 +113,7 @@ class DiskDatabase(Database):
             database[node_name].update({'port': node_port, 'address': node_addr})
         else:
             database[node_name] = {'port': node_port, 'address': node_addr,
-                                   'tasks': [], 'finished_tasks': []}
+                                   'tasks': [], 'finished_tasks': {}}
 
     def register_node(self, node_name: str, node_addr: str, node_port: int) -> NoReturn:
         """
@@ -187,9 +187,11 @@ class DiskDatabase(Database):
         if node_name not in database \
                 or len([t for t in database[node_name]['tasks'] if t[0] == node_path]) == 0:
             raise UnexistentNodeError
-        if task_data in database[node_name]['finished_tasks']:
+        if node_path not in database[node_name]['finished_tasks']:
+            database[node_name]['finished_tasks'][node_path] = []
+        if task_data in database[node_name]['finished_tasks'][node_path]:
             return
-        database[node_name]['finished_tasks'].insert(0, task_data)
+        database[node_name]['finished_tasks'][node_path].insert(0, task_data)
 
     def register_finished_task(self, node_name: str, node_path: str, task: FinishedTask) -> NoReturn:
         """
@@ -215,7 +217,10 @@ class DiskDatabase(Database):
         """
         if node_name not in self.database:
             return []
-        return [FinishedTask.from_dict(ft) for ft in self.database[node_name]['finished_tasks']]
+        if node_path not in self.database[node_name]['finished_tasks']:
+            return []
+        return [FinishedTask.from_dict(ft)
+                for ft in self.database[node_name]['finished_tasks'][node_path]]
 
     @staticmethod
     def _delete_scheduled_task(database, node_name: str, node_path: str):
