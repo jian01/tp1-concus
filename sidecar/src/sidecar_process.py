@@ -1,4 +1,5 @@
 import json
+import signal
 import socket
 from multiprocessing import Process
 
@@ -17,12 +18,18 @@ class SidecarProcess:
         self.backup_no = 0
         self.port = port
         self.listen_backlog = listen_backlog
+        self.process_list = []
+
+    def _gentle_exit(self, _, __):
+        for p in self.process_list:
+            p.join()
 
     def __call__(self):
+        signal.signal(signal.SIGINT, self._gentle_exit)
+        signal.signal(signal.SIGTERM, self._gentle_exit)
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(('', self.port))
         self._server_socket.listen(self.listen_backlog)
-        process_list = []
         while True:
             client_sock = self.__accept_new_connection()
             p = Process(target=self.__handle_client_connection, args=(client_sock, self.backup_no))
@@ -30,7 +37,7 @@ class SidecarProcess:
             client_sock.close()
             self.backup_no += 1
             self.backup_no = self.backup_no % self.listen_backlog
-            process_list = [p for p in process_list if p.is_alive()] + [p]
+            self.process_list = [p for p in self.process_list if p.is_alive()] + [p]
 
     @staticmethod
     def __handle_client_connection(client_sock, backup_no: int):
@@ -46,7 +53,7 @@ class SidecarProcess:
             msg = json.loads(msg)
             path, previous_checksum = msg['path'], msg['checksum']
             SidecarProcess.logger.debug("Previous checksum for path %s is '%s'" % (path, previous_checksum))
-        except OSError as e:
+        except (OSError, TimeoutError) as e:
             SidecarProcess.logger.exception("Error while reading socket %s: %s" % (client_sock, e))
             socket_transferer.abort()
             return
@@ -68,7 +75,7 @@ class SidecarProcess:
             socket_transferer.send_file(TMP_BACKUP_PATH % backup_no)
             SidecarProcess.logger.debug("Backup file sent")
             socket_transferer.send_plain_text(file_checksum)
-        except OSError as e:
+        except Exception as e:
             SidecarProcess.logger.exception("Error while writing socket %s: %s" % (client_sock, e))
             socket_transferer.abort()
             return

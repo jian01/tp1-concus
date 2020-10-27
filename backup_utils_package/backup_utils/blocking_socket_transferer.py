@@ -1,28 +1,43 @@
 import os
+import select
 import socket
 
 DEFAULT_SOCKET_BUFFER_SIZE = 4096
-DEFAULT_RECEIVE_TIMEOUT = 120
+DEFAULT_RECEIVE_TIMEOUT = 60
 OK_MESSAGE = "OK"
 OK_MESSAGE_LEN = len(OK_MESSAGE.encode('utf-8'))
 SIZE_NUMBER_SIZE = 20
+
+
+class SocketClosed(Exception):
+    pass
 
 
 class BlockingSocketTransferer:
     def __init__(self, socket: socket):
         self.socket = socket
 
+    def timeouted_recv(self, size: int) -> bytes:
+        data = b''
+        ready = select.select([self.socket], [], [], DEFAULT_RECEIVE_TIMEOUT)
+        if ready[0]:
+            self.socket.settimeout(DEFAULT_RECEIVE_TIMEOUT)
+            data = self.socket.recv(size)
+            self.socket.settimeout(None)
+        if data == b'':
+            raise SocketClosed
+        return data
+
     @staticmethod
     def size_to_bytes_number(size: int) -> bytes:
         text = str(size)
         return text.zfill(SIZE_NUMBER_SIZE).encode('ascii')
 
-    @staticmethod
-    def receive_fixed_size(sock, size) -> str:
+    def receive_fixed_size(self, size) -> str:
         data = ""
         recv_size = 0
         while recv_size < size:
-            new_data = sock.recv(size - recv_size)
+            new_data = self.timeouted_recv(size - recv_size)
             recv_size += len(new_data)
             data += new_data.decode('ascii')
         return data
@@ -35,15 +50,13 @@ class BlockingSocketTransferer:
         assert text == OK_MESSAGE
 
     def receive_file_data(self, file):
-        self.socket.settimeout(DEFAULT_RECEIVE_TIMEOUT)
-        file_size = int(self.receive_fixed_size(self.socket, SIZE_NUMBER_SIZE))
+        file_size = int(self.receive_fixed_size(SIZE_NUMBER_SIZE))
         self.send_ok()
         while file_size > 0:
-            buffer = self.socket.recv(DEFAULT_SOCKET_BUFFER_SIZE)
+            buffer = self.timeouted_recv(DEFAULT_SOCKET_BUFFER_SIZE)
             file.write(buffer)
             file_size -= len(buffer)
         self.send_ok()
-        self.socket.settimeout(None)
 
     def send_file(self, filename):
         file_size = os.stat(filename).st_size
@@ -62,19 +75,18 @@ class BlockingSocketTransferer:
         self.socket.sendall(encoded_text)
 
     def receive_plain_text(self) -> str:
-        self.socket.settimeout(DEFAULT_RECEIVE_TIMEOUT)
-        size_to_recv = int(self.receive_fixed_size(self.socket, SIZE_NUMBER_SIZE))
+        size_to_recv = int(self.receive_fixed_size(SIZE_NUMBER_SIZE))
         result = ""
         recv_size = 0
         while recv_size < size_to_recv:
-            new_data = self.socket.recv(size_to_recv - recv_size)
+            new_data = self.timeouted_recv(size_to_recv - recv_size)
             result += new_data.decode('utf-8')
             recv_size += len(new_data)
-        self.socket.settimeout(None)
         return result
 
     def abort(self):
         self.send_plain_text("ABORT")
+        self.close()
 
     def close(self):
         self.socket.shutdown(socket.SHUT_WR)

@@ -201,7 +201,7 @@ class BackupScheduler:
             if (sched_task.node_name, sched_task.node_path) in self.running_tasks:
                 continue
             if sched_task.should_run() and (
-            sched_task.node_name, sched_task.node_path, sched_task.last_checksum) not in self.task_queue:
+                    sched_task.node_name, sched_task.node_path, sched_task.last_checksum) not in self.task_queue:
                 self.task_queue.appendleft((sched_task.node_name, sched_task.node_path, sched_task.last_checksum))
             number_of_running_tasks = len(self.running_tasks)
             for queued_task in range(min(self.max_processes - number_of_running_tasks, len(self.task_queue))):

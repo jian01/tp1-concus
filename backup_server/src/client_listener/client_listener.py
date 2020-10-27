@@ -36,7 +36,7 @@ class ClientListener:
         socket_transferer = BlockingSocketTransferer(client_sock)
         try:
             msg = socket_transferer.receive_plain_text()
-        except OSError:
+        except Exception:
             ClientListener.logger.exception("Error while reading socket {}".format(client_sock))
             socket_transferer.abort()
             return
@@ -56,7 +56,7 @@ class ClientListener:
             raise e
         try:
             socket_transferer.send_plain_text(json.dumps({"message": message, "data": data}))
-        except OSError:
+        except Exception:
             ClientListener.logger.exception("Error writing through socket")
             socket_transferer.abort()
             return

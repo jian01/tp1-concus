@@ -58,7 +58,7 @@ class NodeHandlerProcess:
             socket_transferer = BlockingSocketTransferer(sock)
             socket_transferer.send_plain_text(json.dumps({"checksum": self.previous_checksum,
                                                           "path": self.node_path}))
-        except OSError as e:
+        except Exception as e:
             NodeHandlerProcess.logger.exception("Error while writing socket %s: %s" % (sock, e))
             NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %
                                            (self.node_address, self.node_port, self.node_path))
@@ -81,7 +81,7 @@ class NodeHandlerProcess:
             socket_transferer.receive_file_data(data_file)
             NodeHandlerProcess.logger.debug("File data received")
             checksum = socket_transferer.receive_plain_text()
-        except OSError as e:
+        except Exception as e:
             NodeHandlerProcess.logger.exception("Error while reading socket %s: %s" % (sock, e))
             NodeHandlerProcess.logger.info("Terminating handler for node %s:%d and path %s" %
                                            (self.node_address, self.node_port, self.node_path))
