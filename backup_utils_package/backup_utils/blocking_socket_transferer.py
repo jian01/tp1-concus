@@ -1,5 +1,4 @@
 import os
-import select
 import socket
 
 DEFAULT_SOCKET_BUFFER_SIZE = 4096

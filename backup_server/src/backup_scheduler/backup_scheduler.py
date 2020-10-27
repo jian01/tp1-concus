@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 from collections import deque
 from datetime import datetime, timezone
@@ -6,7 +7,6 @@ from multiprocessing import Pipe, Process
 from typing import NoReturn, NamedTuple, Optional
 
 from backup_utils.backup_file import BackupFile
-from backup_utils.multiprocess_logging import MultiprocessingLogger
 from src.backup_scheduler.client_request_handler import ClientRequestHandler
 from src.backup_scheduler.node_handler_process import NodeHandlerProcess, CORRECT_FILE_FORMAT, WIP_FILE_FORMAT, \
     SAME_FILE_FORMAT
@@ -78,7 +78,7 @@ class BackupScheduler:
     """
     Backup scheduler
     """
-    logger = MultiprocessingLogger.getLogger(__module__)
+    logger = logging.getLogger(__module__)
 
     def _reload_schedule(self):
         BackupScheduler.logger.debug("Reloading schedule for backup")

@@ -1,18 +1,17 @@
 import json
-import signal
+import logging
 import socket
 from multiprocessing import Process
 
 from backup_utils.backup_file import BackupFile
 from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
-from backup_utils.multiprocess_logging import MultiprocessingLogger
 
 TMP_BACKUP_PATH = "/tmp/%d"
 DEFAULT_SOCKET_BUFFER_SIZE = 4096
 
 
 class SidecarProcess:
-    logger = MultiprocessingLogger.getLogger(__module__)
+    logger = logging.getLogger(__module__)
 
     def __init__(self, port, listen_backlog):
         self.backup_no = 0

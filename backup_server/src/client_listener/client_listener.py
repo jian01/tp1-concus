@@ -1,13 +1,13 @@
 import json
+import logging
 import socket
 from multiprocessing import Pipe
 
 from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
-from backup_utils.multiprocess_logging import MultiprocessingLogger
 
 
 class ClientListener:
-    logger = MultiprocessingLogger.getLogger(__module__)
+    logger = logging.getLogger(__module__)
 
     def __init__(self, port, listen_backlog,
                  backup_scheduler_write: Pipe,

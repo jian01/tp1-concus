@@ -1,11 +1,11 @@
 import json
+import logging
 import os
 import socket
 from typing import NoReturn
 
 from backup_utils.backup_file import BackupFile
 from backup_utils.blocking_socket_transferer import BlockingSocketTransferer
-from backup_utils.multiprocess_logging import MultiprocessingLogger
 
 CORRECT_FILE_FORMAT = '%s.CORRECT'
 WIP_FILE_FORMAT = '%s.WIP'
@@ -16,7 +16,7 @@ class NodeHandlerProcess:
     """
     Handles the connection with the node for backuping
     """
-    logger = MultiprocessingLogger.getLogger(__module__)
+    logger = logging.getLogger(__module__)
 
     def __init__(self, node_address: str, node_port: int,
                  node_path: str, write_file_path: str,
