@@ -27,6 +27,42 @@ services:
     volumes:
       - ./node1_volume:/data
 
+  node2:
+    container_name: node2
+    image: sidecar:latest
+    entrypoint: python3 /__main__.py
+    environment:
+      - PORT=2222
+      - MAXIMUM_CONCURRENT_BACKUPS=3
+    networks:
+      - testing_net
+    volumes:
+      - ./node2_volume:/data
+
+  node3:
+    container_name: node3
+    image: sidecar:latest
+    entrypoint: python3 /__main__.py
+    environment:
+      - PORT=2222
+      - MAXIMUM_CONCURRENT_BACKUPS=3
+    networks:
+      - testing_net
+    volumes:
+      - ./node3_volume:/data
+
+  node4:
+    container_name: node4
+    image: sidecar:latest
+    entrypoint: python3 /__main__.py
+    environment:
+      - PORT=2222
+      - MAXIMUM_CONCURRENT_BACKUPS=3
+    networks:
+      - testing_net
+    volumes:
+      - ./node4_volume:/data
+
 networks:
   testing_net:
     ipam:

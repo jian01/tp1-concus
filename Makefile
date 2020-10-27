@@ -19,6 +19,12 @@ run_demo:
 	python run_command.py --address localhost --port 1111 --command add_node --args '{"name": "node1", "address": "node1", "port": 2222}'
 	python run_command.py --address localhost --port 1111 --command add_task --args '{"name": "node1", "path": "/data/cositas", "frequency": 1}'
 	python run_command.py --address localhost --port 1111 --command add_task --args '{"name": "node1", "path": "/data/falsa", "frequency": 1}'
+	python run_command.py --address localhost --port 1111 --command add_node --args '{"name": "node2", "address": "node2", "port": 2222}'
+	python run_command.py --address localhost --port 1111 --command add_task --args '{"name": "node2", "path": "/data/cositas", "frequency": 1}'
+	python run_command.py --address localhost --port 1111 --command add_node --args '{"name": "node3", "address": "node3", "port": 2222}'
+	python run_command.py --address localhost --port 1111 --command add_task --args '{"name": "node3", "path": "/data/cositas", "frequency": 1}'
+	python run_command.py --address localhost --port 1111 --command add_node --args '{"name": "node4", "address": "node4", "port": 2222}'
+	python run_command.py --address localhost --port 1111 --command add_task --args '{"name": "node4", "path": "/data/cositas", "frequency": 1}'
 .PHONY: run_test_commands
 
 logs:

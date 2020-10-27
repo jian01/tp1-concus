@@ -6,4 +6,15 @@
 # Comandos demo
 
 ```
+# Consultar backups
+
+python run_command.py --address localhost --port 1111 --command query_backups --args '{"name": "node1", "path": "/data/cositas"}'
+
+# Sacar tarea
+
+python run_command.py --address localhost --port 1111 --command delete_scheduled_task --args '{"name": "node1", "path": "/data/falsa"}'
+
+# Borrar nodo
+
+python run_command.py --address localhost --port 1111 --command delete_node --args '{"name": "node1"}'
 ```

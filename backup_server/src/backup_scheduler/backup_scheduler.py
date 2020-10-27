@@ -156,6 +156,7 @@ class BackupScheduler:
             data, tasks_changed = self.command_parser.parse_command(command, args)
             if tasks_changed:
                 self._reload_schedule()
+                self._clean_backup_path()
         except Exception as e:
             BackupScheduler.logger.exception("Error handling client request")
             self.pipe_request_answer.send(("Error %s:" % str(e), data))
