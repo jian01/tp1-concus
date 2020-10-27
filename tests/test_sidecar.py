@@ -80,7 +80,7 @@ class TestSidecar(unittest.TestCase):
                                                       "path": '/tmp/example'}))
         _ = socket_transferer.receive_plain_text()
         socket_transferer.close()
-        self.p.terminate()
+        sleep(5)
 
     def test_fail_to_receive_order(self):
         sleep(5)
@@ -88,10 +88,4 @@ class TestSidecar(unittest.TestCase):
         sock.connect(('localhost', TestSidecar.PORT))
         socket_transferer = BlockingSocketTransferer(sock)
         socket_transferer.close()
-        self.p.terminate()
-
-    def test_fail_to_receive_order_timeout(self):
         sleep(5)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('localhost', TestSidecar.PORT))
-        self.p.terminate()

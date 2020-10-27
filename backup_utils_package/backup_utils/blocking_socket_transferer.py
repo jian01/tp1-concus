@@ -3,7 +3,6 @@ import select
 import socket
 
 DEFAULT_SOCKET_BUFFER_SIZE = 4096
-DEFAULT_RECEIVE_TIMEOUT = 60
 OK_MESSAGE = "OK"
 OK_MESSAGE_LEN = len(OK_MESSAGE.encode('utf-8'))
 SIZE_NUMBER_SIZE = 20
@@ -17,13 +16,8 @@ class BlockingSocketTransferer:
     def __init__(self, socket: socket):
         self.socket = socket
 
-    def timeouted_recv(self, size: int) -> bytes:
-        data = b''
-        ready = select.select([self.socket], [], [], DEFAULT_RECEIVE_TIMEOUT)
-        if ready[0]:
-            self.socket.settimeout(DEFAULT_RECEIVE_TIMEOUT)
-            data = self.socket.recv(size)
-            self.socket.settimeout(None)
+    def controlled_recv(self, size: int) -> bytes:
+        data = self.socket.recv(size)
         if data == b'':
             raise SocketClosed
         return data
@@ -37,7 +31,7 @@ class BlockingSocketTransferer:
         data = ""
         recv_size = 0
         while recv_size < size:
-            new_data = self.timeouted_recv(size - recv_size)
+            new_data = self.controlled_recv(size - recv_size)
             recv_size += len(new_data)
             data += new_data.decode('ascii')
         return data
@@ -53,7 +47,7 @@ class BlockingSocketTransferer:
         file_size = int(self.receive_fixed_size(SIZE_NUMBER_SIZE))
         self.send_ok()
         while file_size > 0:
-            buffer = self.timeouted_recv(DEFAULT_SOCKET_BUFFER_SIZE)
+            buffer = self.controlled_recv(DEFAULT_SOCKET_BUFFER_SIZE)
             file.write(buffer)
             file_size -= len(buffer)
         self.send_ok()
@@ -79,7 +73,7 @@ class BlockingSocketTransferer:
         result = ""
         recv_size = 0
         while recv_size < size_to_recv:
-            new_data = self.timeouted_recv(size_to_recv - recv_size)
+            new_data = self.controlled_recv(size_to_recv - recv_size)
             result += new_data.decode('utf-8')
             recv_size += len(new_data)
         return result

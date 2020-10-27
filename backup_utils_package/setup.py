@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="backup_utils",
-    version="0.1.7",
+    version="0.1.8",
     author="Gianmarco Cafferata",
     author_email="giancafferata@hotmail.com",
     packages=['backup_utils'],

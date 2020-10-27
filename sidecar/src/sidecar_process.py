@@ -20,13 +20,7 @@ class SidecarProcess:
         self.listen_backlog = listen_backlog
         self.process_list = []
 
-    def _gentle_exit(self, _, __):
-        for p in self.process_list:
-            p.join()
-
     def __call__(self):
-        signal.signal(signal.SIGINT, self._gentle_exit)
-        signal.signal(signal.SIGTERM, self._gentle_exit)
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(('', self.port))
         self._server_socket.listen(self.listen_backlog)
